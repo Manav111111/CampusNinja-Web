@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import { isReviewMode } from '@/config/reviewMode';
 
 export const Footer: React.FC = () => {
   return (
