@@ -7,16 +7,16 @@ import { ArrowLeft, CheckCircle2, FileText, LucideIcon, Mail, Phone, School, Shi
 import { Card } from '@/components/common/Card';
 import { useToast } from '@/contexts/ToastContext';
 import { useMarketplaceServices } from '@/hooks/useQueries';
-import { getCurrentSession } from '@/services/auth';
+import { getCurrentSession, performGoogleLogin } from '@/services/auth';
 import { createOrder, uploadOrderFileWeb } from '@/services/supabase';
 import { isReviewMode } from '@/config/reviewMode';
 
 export default function MarketplaceOrderPage() {
   const params = useParams();
   const router = useRouter();
-  const productId = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { data: services } = useMarketplaceServices();
   const { showToast } = useToast();
+  const productId = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : 'm-1';
+  const { data: services } = useMarketplaceServices();
   const product = services?.find((service) => service.id === productId) || {
     id: productId || 'm-1',
     title: 'Custom College Service Request',
@@ -42,10 +42,20 @@ export default function MarketplaceOrderPage() {
     setIsSubmitting(true);
     try {
       const session = await getCurrentSession();
+      if (!session || !session.user?.id) {
+        showToast({
+          type: 'info',
+          title: 'Sign in required',
+          message: 'You must be signed in to submit orders. Redirecting to secure login...'
+        });
+        await performGoogleLogin(typeof window !== 'undefined' ? window.location.pathname : '/profile');
+        return;
+      }
+
       const fileUrl = selectedFile ? await uploadOrderFileWeb(selectedFile) : null;
       await createOrder({
         product_id: product.id,
-        user_id: session?.user?.id || undefined,
+        user_id: session.user.id,
         customer_name: customerName,
         customer_phone: customerPhone,
         customer_email: customerEmail,
