@@ -430,7 +430,7 @@ export const uploadOrderFileWeb = async (file: File): Promise<string> => {
 
   if (error) {
     console.error('Error uploading order file:', error);
-    throw error;
+    throw new Error(`File upload failed: ${error.message || 'Please verify file size and permissions.'}`);
   }
 
   const { data: urlData } = supabase.storage
@@ -466,7 +466,7 @@ export const createOrder = async (orderData: Order): Promise<Order> => {
 
   if (error) {
     console.error('Error creating order:', error);
-    throw error;
+    throw new Error(error.message || 'Order creation failed.');
   }
   return data;
 };
