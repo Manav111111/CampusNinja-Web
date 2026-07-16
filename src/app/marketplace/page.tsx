@@ -7,6 +7,7 @@ import { useMarketplaceServices } from '@/hooks/useQueries';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
 import { MarketplaceCard } from '@/components/features/MarketplaceCard';
+import { isReviewMode } from '@/config/reviewMode';
 
 const fallbackMarketplace = [
   { id: 'm-1', title: 'Custom College Assignments & Practical Files', description: 'Handwritten or printed solutions tailored to your exact question list.', price: 149, category: 'Assignments' },
@@ -50,7 +51,7 @@ export default function MarketplacePage() {
             {[
               [ShieldCheck, 'Verified experts'],
               [Truck, '24h delivery options'],
-              [Zap, 'Fast WhatsApp follow-up'],
+              [Zap, isReviewMode() ? 'Instant order processing' : 'Fast WhatsApp follow-up'],
             ].map(([Icon, label]) => (
               <span key={label as string} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700">
                 <Icon className="h-4 w-4 text-blue-600" />

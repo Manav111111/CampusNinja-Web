@@ -3,12 +3,13 @@
 import React from 'react';
 import { Bell, CheckCircle2, Sparkles } from 'lucide-react';
 import { Card } from '@/components/common/Card';
+import { isReviewMode } from '@/config/reviewMode';
 
 export default function NotificationsPage() {
   const sampleNotifications = [
     { id: 'n-1', title: 'Midterm PYQ solutions uploaded', message: 'New solved papers for Engineering Mathematics and Physics have been added.', date: 'Today', unread: true },
     { id: 'n-2', title: 'Marketplace assignment window open', message: 'Custom practical files can now be requested with 24-hour delivery.', date: 'Yesterday', unread: false },
-    { id: 'n-3', title: 'Semester study groups active', message: 'Join the official CampusNinja WhatsApp study network for your university.', date: '2 days ago', unread: false },
+    ...(!isReviewMode() ? [{ id: 'n-3', title: 'Semester study groups active', message: 'Join the official CampusNinja WhatsApp study network for your university.', date: '2 days ago', unread: false }] : []),
   ];
 
   return (

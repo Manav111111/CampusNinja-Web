@@ -10,14 +10,7 @@ import {
 } from 'lucide-react';
 import { useAcademic } from '@/contexts/AcademicContext';
 import { getCurrentSession } from '@/services/auth';
-
-const navItems = [
-  { href: '/subjects', label: 'Study Hub' },
-  { href: '/marketplace', label: 'Marketplace' },
-  { href: '/skills', label: 'Skills' },
-  { href: '/support', label: 'Community' },
-  { href: '/orders', label: 'Premium' },
-];
+import { isReviewMode } from '@/config/reviewMode';
 
 export const Navbar: React.FC = () => {
   const router = useRouter();
@@ -26,6 +19,14 @@ export const Navbar: React.FC = () => {
   const [userEmail, setUserEmail] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+
+  const navItems = [
+    { href: '/subjects', label: 'Study Hub' },
+    { href: '/marketplace', label: 'Marketplace' },
+    { href: '/skills', label: 'Skills' },
+    { href: '/support', label: isReviewMode() ? 'Help & FAQ' : 'Community' },
+    { href: '/orders', label: 'Premium' },
+  ];
 
   useEffect(() => {
     getCurrentSession().then((session) => {

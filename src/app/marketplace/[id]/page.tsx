@@ -9,6 +9,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useMarketplaceServices } from '@/hooks/useQueries';
 import { getCurrentSession } from '@/services/auth';
 import { createOrder, uploadOrderFileWeb } from '@/services/supabase';
+import { isReviewMode } from '@/config/reviewMode';
 
 export default function MarketplaceOrderPage() {
   const params = useParams();
@@ -53,7 +54,13 @@ export default function MarketplaceOrderPage() {
         payment_method: 'cod',
         file_url: fileUrl,
       });
-      showToast({ type: 'success', title: 'Order placed', message: 'Our academic expert will contact you via WhatsApp soon.' });
+      showToast({
+        type: 'success',
+        title: 'Order placed',
+        message: isReviewMode()
+          ? 'Our academic team will process your order soon.'
+          : 'Our academic expert will contact you via WhatsApp soon.'
+      });
       router.push('/orders');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Please try again.';
@@ -96,7 +103,7 @@ export default function MarketplaceOrderPage() {
           <form onSubmit={handleSubmitOrder} className="mt-6 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field icon={User} label="Full name" required value={customerName} onChange={setCustomerName} placeholder="Rahul Sharma" />
-              <Field icon={Phone} label="WhatsApp number" required value={customerPhone} onChange={setCustomerPhone} placeholder="+91 9876543210" />
+              <Field icon={Phone} label={isReviewMode() ? "Phone number" : "WhatsApp number"} required value={customerPhone} onChange={setCustomerPhone} placeholder="+91 9876543210" />
               <Field icon={Mail} label="Email address" required type="email" value={customerEmail} onChange={setCustomerEmail} placeholder="rahul@college.edu" />
               <Field icon={School} label="College name" value={collegeName} onChange={setCollegeName} placeholder="College or university" />
             </div>

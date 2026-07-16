@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
 import { useUserOrders } from '@/hooks/useQueries';
 import { getCurrentSession } from '@/services/auth';
+import { isReviewMode } from '@/config/reviewMode';
 
 export default function MyOrdersPage() {
   const [userId, setUserId] = useState<string | undefined>(undefined);
@@ -34,7 +35,7 @@ export default function MyOrdersPage() {
         <EmptyState
           icon={PackageCheck}
           title="Sign in to view orders"
-          description="Log into your account to monitor status updates and communicate with experts."
+          description={isReviewMode() ? "Log into your account to monitor status updates and access your deliverables." : "Log into your account to monitor status updates and communicate with experts."}
           action={<Link href="/profile" className="inline-flex h-11 items-center gap-2 rounded-2xl bg-blue-600 px-5 text-sm font-bold text-white transition hover:bg-blue-700">Go to profile <ArrowRight className="h-4 w-4" /></Link>}
         />
       ) : isLoading ? (

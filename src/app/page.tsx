@@ -18,6 +18,7 @@ import { MarketplaceCard } from '@/components/features/MarketplaceCard';
 import { QuickAccessCard } from '@/components/features/QuickAccessCard';
 import { SubjectCard } from '@/components/features/SubjectCard';
 import { Skeleton } from '@/components/common/Skeleton';
+import { isReviewMode } from '@/config/reviewMode';
 
 const fallbackSubjects = [
   { id: 'sub-1', name: 'Engineering Physics', title: 'Engineering Physics', short_name: 'PHY', theme_color: '#2A4B8D', counts: { total: 12, notes: 5, pyqs: 4, videos: 3 } },
@@ -66,26 +67,45 @@ export default function HomePage() {
             Choose your course, branch, and semester. CampusNinja organizes notes, PYQs, videos, syllabus, assignments, and labs around the way students actually study.
           </p>
 
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <a
-              href="https://youtube.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#CC1F1F] px-5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#A81919]"
-            >
-              <YouTubeIcon className="h-4 w-4 fill-current" />
-              YouTube
-            </a>
-            <a
-              href="https://whatsapp.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#1F8A5A] px-5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#186E48]"
-            >
-              <WhatsAppIcon className="h-4 w-4 fill-current" />
-              WhatsApp Community
-            </a>
-          </div>
+          {isReviewMode() ? (
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <Link
+                href="/subjects"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[var(--ink)] px-5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[var(--brand)]"
+              >
+                <BookOpen className="h-4 w-4" />
+                Explore Study Materials
+              </Link>
+              <Link
+                href="/marketplace"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[var(--line-strong)] bg-white px-5 text-sm font-bold text-[var(--ink)] shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[var(--brand)] hover:text-[var(--brand)]"
+              >
+                <ClipboardList className="h-4 w-4" />
+                Order Lab Manuals & Projects
+              </Link>
+            </div>
+          ) : (
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <a
+                href="https://youtube.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#CC1F1F] px-5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#A81919]"
+              >
+                <YouTubeIcon className="h-4 w-4 fill-current" />
+                YouTube
+              </a>
+              <a
+                href="https://whatsapp.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[#1F8A5A] px-5 text-sm font-bold text-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#186E48]"
+              >
+                <WhatsAppIcon className="h-4 w-4 fill-current" />
+                WhatsApp Community
+              </a>
+            </div>
+          )}
 
           <div className="mt-7 flex flex-wrap items-center gap-2 font-mono-spec text-[11px] font-semibold text-[var(--muted)]">
             {['COURSE', 'BRANCH', 'SEMESTER', 'SUBJECT', 'RESOURCE'].map((item, index) => (
@@ -149,14 +169,25 @@ export default function HomePage() {
             View tracks <ArrowRight className="h-4 w-4 transition duration-200 ease group-hover:translate-x-1" />
           </span>
         </Link>
-        <Link href="/support" className="spec-corners surface-card group rounded-lg p-6">
-          <Users className="h-6 w-6 text-[var(--brand)]" />
-          <h2 className="font-display mt-6 text-2xl font-bold tracking-tight text-[var(--ink)]">Community</h2>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Ask for help, request missing material, and stay close to your batch.</p>
-          <span className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-[var(--ink)] transition duration-200 ease group-hover:text-[var(--brand)]">
-            Join in <ArrowRight className="h-4 w-4 transition duration-200 ease group-hover:translate-x-1" />
-          </span>
-        </Link>
+        {isReviewMode() ? (
+          <Link href="/support" className="spec-corners surface-card group rounded-lg p-6">
+            <ClipboardList className="h-6 w-6 text-[var(--brand)]" />
+            <h2 className="font-display mt-6 text-2xl font-bold tracking-tight text-[var(--ink)]">Help & FAQ</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Find answers to common academic questions, order delivery details, and study guidelines.</p>
+            <span className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-[var(--ink)] transition duration-200 ease group-hover:text-[var(--brand)]">
+              Get support <ArrowRight className="h-4 w-4 transition duration-200 ease group-hover:translate-x-1" />
+            </span>
+          </Link>
+        ) : (
+          <Link href="/support" className="spec-corners surface-card group rounded-lg p-6">
+            <Users className="h-6 w-6 text-[var(--brand)]" />
+            <h2 className="font-display mt-6 text-2xl font-bold tracking-tight text-[var(--ink)]">Community</h2>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Ask for help, request missing material, and stay close to your batch.</p>
+            <span className="mt-6 inline-flex items-center gap-2 text-sm font-bold text-[var(--ink)] transition duration-200 ease group-hover:text-[var(--brand)]">
+              Join in <ArrowRight className="h-4 w-4 transition duration-200 ease group-hover:translate-x-1" />
+            </span>
+          </Link>
+        )}
       </section>
 
       <SectionHeader
