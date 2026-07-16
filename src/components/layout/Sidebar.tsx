@@ -112,8 +112,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                           href={item.href}
                           onClick={onClose}
                           className={`group flex items-center justify-between rounded-md px-3 py-2.5 text-[13px] font-semibold transition ${isActive
-                              ? 'bg-[var(--ink)] text-white'
-                              : 'text-[var(--muted)] hover:bg-[var(--brand-50)] hover:text-[var(--ink)]'
+                            ? 'bg-[var(--ink)] text-white'
+                            : 'text-[var(--muted)] hover:bg-[var(--brand-50)] hover:text-[var(--ink)]'
                             }`}
                         >
                           <span className="flex items-center gap-3">

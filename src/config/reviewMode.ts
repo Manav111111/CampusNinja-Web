@@ -15,7 +15,13 @@ export const isReviewMode = (): boolean => {
       process.env.NEXT_PUBLIC_REVIEW_MODE ||
       process.env.REVIEW_MODE ||
       process.env.EXPO_PUBLIC_REVIEW_MODE;
-    return flag === 'true' || flag === '1' || flag === 'yes';
+    if (flag === 'false' || flag === '0' || flag === 'no') {
+      return false;
+    }
+    if (flag === 'true' || flag === '1' || flag === 'yes') {
+      return true;
+    }
   }
-  return false;
+  // Default to TRUE right now during Razorpay & Google Play review period so community features are automatically hidden even without restarting local dev server or configuring cloud env vars.
+  return true;
 };

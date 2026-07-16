@@ -23,7 +23,8 @@ export const Footer: React.FC = () => {
         {[
           ['Study', [['Study Hub', '/subjects'], ['Search Library', '/search'], ['Skill Tracks', '/skills']]],
           ['Marketplace', [['Services', '/marketplace'], ['Track Orders', '/orders'], ['Bookmarks', '/bookmarks']]],
-          ['Help', [['Support', '/support'], ['Profile', '/profile'], ['Setup', '/setup']]],
+          ['Help & Info', [[isReviewMode() ? 'Help & FAQ' : 'Support & Community', '/support'], ['Contact Us', '/contact'], ['About Us', '/about']]],
+          ['Legal & Policies', [['Privacy Policy', '/privacy-policy'], ['Terms & Conditions', '/terms'], ['Refund Policy', '/refund-policy'], ['Shipping Policy', '/shipping-policy']]],
         ].map(([title, links]) => (
           <div key={title as string}>
             <h4 className="mb-3 font-mono-spec text-[10px] font-bold tracking-[0.14em] text-[var(--muted-2)]">{(title as string).toUpperCase()}</h4>
@@ -42,10 +43,13 @@ export const Footer: React.FC = () => {
 
       <div className="mx-auto mt-8 flex w-full max-w-[1320px] flex-col gap-3 border-t border-[var(--line)] px-5 pt-6 text-xs font-medium text-[var(--muted)] sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <span className="font-mono-spec text-[11px]">© {new Date().getFullYear()} CAMPUSNINJA — ALL RIGHTS RESERVED</span>
-        <div className="flex gap-5">
-          <Link href="/support" className="hover:text-[var(--ink)]">Privacy</Link>
-          <Link href="/support" className="hover:text-[var(--ink)]">Terms</Link>
-          <Link href="/support" className="hover:text-[var(--ink)]">Status</Link>
+        <div className="flex flex-wrap gap-5">
+          <Link href="/about" className="hover:text-[var(--ink)]">About</Link>
+          <Link href="/contact" className="hover:text-[var(--ink)]">Contact</Link>
+          <Link href="/privacy-policy" className="hover:text-[var(--ink)]">Privacy</Link>
+          <Link href="/terms" className="hover:text-[var(--ink)]">Terms</Link>
+          <Link href="/refund-policy" className="hover:text-[var(--ink)]">Refunds</Link>
+          <Link href="/shipping-policy" className="hover:text-[var(--ink)]">Shipping & Delivery</Link>
         </div>
       </div>
     </footer>
