@@ -12,20 +12,53 @@ function AuthCallbackContent() {
   useEffect(() => {
     let mounted = true;
     const nextUrl = searchParams.get('next') || searchParams.get('redirectTo') || '/profile';
+    const code = searchParams.get('code');
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!mounted) return;
       if (session) {
+        if (typeof window !== 'undefined' && window.location.search.includes('code=')) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
         router.replace(nextUrl);
       }
     });
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      if (data.session) {
-        router.replace(nextUrl);
+    const resolveSession = async () => {
+      try {
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            console.warn('exchangeCodeForSession note (may have been handled by detectSessionInUrl):', error.message);
+          }
+        }
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!mounted) return;
+
+        if (session) {
+          if (typeof window !== 'undefined' && window.location.search.includes('code=')) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+          router.replace(nextUrl);
+        } else {
+          setTimeout(() => {
+            if (mounted) {
+              supabase.auth.getSession().then(({ data }) => {
+                if (mounted) {
+                  router.replace(data.session ? nextUrl : '/profile');
+                }
+              });
+            }
+          }, 3500);
+        }
+      } catch (err) {
+        console.error('Auth callback error:', err);
+        if (mounted) router.replace('/profile');
       }
-    });
+    };
+
+    resolveSession();
 
     return () => {
       mounted = false;
