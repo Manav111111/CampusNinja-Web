@@ -13,21 +13,38 @@ export const getCurrentSession = async (): Promise<Session | null> => {
 export const performGoogleLogin = async (redirectTo?: string): Promise<boolean> => {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    let returnUrl = `${origin}/profile`;
-    if (redirectTo && origin) {
-      if (redirectTo.startsWith('http://') || redirectTo.startsWith('https://')) {
-        returnUrl = redirectTo;
-      } else if (redirectTo.startsWith('/')) {
-        returnUrl = `${origin}${redirectTo}`;
+    if (!origin) throw new Error('Cannot determine window origin for OAuth redirect.');
+
+    // Determine where the user should land AFTER authentication completes
+    let finalDestination = '/profile';
+    if (redirectTo) {
+      if (redirectTo.startsWith('/')) {
+        finalDestination = redirectTo;
+      } else if (redirectTo.startsWith('http://') || redirectTo.startsWith('https://')) {
+        // Extract just the pathname from an absolute URL on the same origin
+        try {
+          const url = new URL(redirectTo);
+          finalDestination = url.pathname + url.search + url.hash;
+        } catch {
+          finalDestination = '/profile';
+        }
       } else {
-        returnUrl = `${origin}/${redirectTo}`;
+        finalDestination = `/${redirectTo}`;
       }
     }
+
+    // Always redirect through /auth/callback so the PKCE code exchange happens reliably.
+    // The callback page reads ?next= and redirects the user to their final destination.
+    const callbackUrl = `${origin}/auth/callback?next=${encodeURIComponent(finalDestination)}`;
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: returnUrl,
+        redirectTo: callbackUrl,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
       },
     });
 
