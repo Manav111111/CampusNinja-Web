@@ -94,6 +94,8 @@ export const useUserOrders = (userId?: string) => {
     queryKey: ['user-orders', userId],
     queryFn: () => (userId ? getUserOrders(userId) : Promise.resolve([])),
     enabled: Boolean(userId),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 

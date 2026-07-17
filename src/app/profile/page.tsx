@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/common/Skeleton';
 import { useAcademic } from '@/contexts/AcademicContext';
 import { useToast } from '@/contexts/ToastContext';
 import { getCurrentSession, handleLogout, performGoogleLogin } from '@/services/auth';
+import { supabase } from '@/services/supabase';
 
 export default function ProfilePage() {
   const [session, setSession] = useState<Session | null>(null);
@@ -17,10 +18,28 @@ export default function ProfilePage() {
   const { showToast } = useToast();
 
   useEffect(() => {
+    let mounted = true;
     getCurrentSession().then((data) => {
+      if (!mounted) return;
       setSession(data);
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(() => {
+      if (mounted) setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      if (!mounted) return;
+      setSession(newSession);
+      setLoading(false);
+      if (newSession && typeof window !== 'undefined' && window.location.search.includes('code=')) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const onGoogleSignIn = async () => {

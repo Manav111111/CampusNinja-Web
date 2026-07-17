@@ -13,7 +13,16 @@ export const getCurrentSession = async (): Promise<Session | null> => {
 export const performGoogleLogin = async (redirectTo?: string): Promise<boolean> => {
   try {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const returnUrl = redirectTo || `${origin}/profile`;
+    let returnUrl = `${origin}/profile`;
+    if (redirectTo && origin) {
+      if (redirectTo.startsWith('http://') || redirectTo.startsWith('https://')) {
+        returnUrl = redirectTo;
+      } else if (redirectTo.startsWith('/')) {
+        returnUrl = `${origin}${redirectTo}`;
+      } else {
+        returnUrl = `${origin}/${redirectTo}`;
+      }
+    }
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

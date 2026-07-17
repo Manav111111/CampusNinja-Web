@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useAcademic } from '@/contexts/AcademicContext';
 import { getCurrentSession } from '@/services/auth';
+import { supabase } from '@/services/supabase';
 import { isReviewMode } from '@/config/reviewMode';
 
 export const Navbar: React.FC = () => {
@@ -29,12 +30,33 @@ export const Navbar: React.FC = () => {
   ];
 
   useEffect(() => {
+    let mounted = true;
     getCurrentSession().then((session) => {
+      if (!mounted) return;
       if (session?.user) {
         setUserName(session.user.user_metadata?.full_name?.split(' ')[0] || '');
         setUserEmail(session.user.email || '');
+      } else {
+        setUserName('');
+        setUserEmail('');
       }
     });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      if (session?.user) {
+        setUserName(session.user.user_metadata?.full_name?.split(' ')[0] || '');
+        setUserEmail(session.user.email || '');
+      } else {
+        setUserName('');
+        setUserEmail('');
+      }
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {

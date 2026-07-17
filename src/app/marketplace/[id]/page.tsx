@@ -7,6 +7,7 @@ import { ArrowLeft, CheckCircle2, FileText, LucideIcon, Mail, Phone, School, Shi
 import { Card } from '@/components/common/Card';
 import { useToast } from '@/contexts/ToastContext';
 import { useMarketplaceServices } from '@/hooks/useQueries';
+import { useQueryClient } from '@tanstack/react-query';
 import { getCurrentSession, performGoogleLogin } from '@/services/auth';
 import { createOrder, uploadOrderFileWeb } from '@/services/supabase';
 import { isReviewMode } from '@/config/reviewMode';
@@ -15,6 +16,7 @@ export default function MarketplaceOrderPage() {
   const params = useParams();
   const router = useRouter();
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const productId = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params.id[0] : 'm-1';
   const { data: services } = useMarketplaceServices();
   const product = services?.find((service) => service.id === productId) || {
@@ -71,6 +73,7 @@ export default function MarketplaceOrderPage() {
           ? 'Our academic team will process your order soon.'
           : 'Our academic expert will contact you via WhatsApp soon.'
       });
+      await queryClient.invalidateQueries({ queryKey: ['user-orders'] });
       router.push('/orders');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Please try again.';

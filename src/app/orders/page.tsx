@@ -2,30 +2,64 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, Clock, PackageCheck, ShoppingBag, Sparkles } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Clock, PackageCheck, RefreshCw, ShoppingBag, Sparkles } from 'lucide-react';
 import { Card } from '@/components/common/Card';
 import { EmptyState } from '@/components/common/EmptyState';
 import { Skeleton } from '@/components/common/Skeleton';
 import { useUserOrders } from '@/hooks/useQueries';
 import { getCurrentSession } from '@/services/auth';
+import { supabase } from '@/services/supabase';
 import { isReviewMode } from '@/config/reviewMode';
 
 export default function MyOrdersPage() {
   const [userId, setUserId] = useState<string | undefined>(undefined);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
+    let mounted = true;
     getCurrentSession().then((session) => {
-      if (session?.user?.id) setUserId(session.user.id);
+      if (!mounted) return;
+      setUserId(session?.user?.id || undefined);
     });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      setUserId(session?.user?.id || undefined);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  const { data: orders, isLoading } = useUserOrders(userId);
+  const { data: orders, isLoading, refetch } = useUserOrders(userId);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setIsRefreshing(false);
+  };
 
   return (
     <div className="page-shell animate-soft-in">
       <section className="surface-card rounded-3xl p-6 sm:p-8">
-        <p className="eyebrow"><Sparkles className="h-3.5 w-3.5" /> Service desk</p>
-        <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">Orders and requests</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="eyebrow"><Sparkles className="h-3.5 w-3.5" /> Service desk</p>
+            <h1 className="mt-4 text-4xl font-black tracking-tight text-slate-950 sm:text-5xl">Orders and requests</h1>
+          </div>
+          {userId && (
+            <button
+              onClick={handleRefresh}
+              disabled={isLoading || isRefreshing}
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50 self-start sm:self-auto"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing || isLoading ? 'animate-spin text-blue-600' : ''}`} />
+              Refresh
+            </button>
+          )}
+        </div>
         <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600">
           Track assignment files, lab manuals, project packages, and delivery status from one workspace.
         </p>
