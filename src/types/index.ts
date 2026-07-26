@@ -91,6 +91,7 @@ export interface Product {
   icon?: string;
   is_active?: boolean;
   created_at?: string;
+  payment_methods?: string[]; // ['cod'], ['online'], or ['cod','online']
 }
 
 export interface Order {
@@ -104,6 +105,11 @@ export interface Order {
   college_name?: string | null;
   address?: string | null;
   payment_method?: string;
+  payment_status?: string;
+  razorpay_order_id?: string | null;
+  razorpay_payment_id?: string | null;
+  razorpay_signature?: string | null;
+  transaction_time?: string | null;
   file_url?: string | null;
   instructions?: string | null;
   status?: string;

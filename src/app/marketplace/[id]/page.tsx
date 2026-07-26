@@ -1,9 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, FileText, LucideIcon, Mail, Phone, School, ShieldCheck, Sparkles, Upload, User } from 'lucide-react';
+import {
+  ArrowLeft, CheckCircle2, CreditCard, FileText, Loader2,
+  LucideIcon, Mail, Phone, School, ShieldCheck, Sparkles,
+  Truck, Upload, User, Wallet, XCircle
+} from 'lucide-react';
 import { Card } from '@/components/common/Card';
 import { useToast } from '@/contexts/ToastContext';
 import { useMarketplaceServices } from '@/hooks/useQueries';
@@ -11,6 +15,59 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getCurrentSession, performGoogleLogin } from '@/services/auth';
 import { createOrder, uploadOrderFileWeb } from '@/services/supabase';
 import { isReviewMode } from '@/config/reviewMode';
+
+// ── Razorpay SDK type declarations ────────────────────────────
+interface RazorpayResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: RazorpayResponse) => void;
+  prefill: { name: string; email: string; contact: string };
+  theme: { color: string };
+  modal: { ondismiss: () => void };
+}
+
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayOptions) => { open: () => void };
+  }
+}
+
+// ── Load Razorpay SDK script ──────────────────────────────────
+function useRazorpayScript() {
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.Razorpay) {
+      setLoaded(true);
+      return;
+    }
+
+    const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
+    if (existingScript) {
+      existingScript.addEventListener('load', () => setLoaded(true));
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => setLoaded(true);
+    script.onerror = () => console.error('Failed to load Razorpay SDK');
+    document.body.appendChild(script);
+  }, []);
+
+  return loaded;
+}
 
 export default function MarketplaceOrderPage() {
   const params = useParams();
@@ -25,7 +82,15 @@ export default function MarketplaceOrderPage() {
     price: '149',
     description: 'Provide your questions or instruction manual below for rapid verified submission.',
     category: 'Academic Help',
+    payment_methods: ['cod', 'online'],
   };
+
+  const razorpayReady = useRazorpayScript();
+
+  // Determine enabled payment methods
+  const paymentMethods: string[] = product.payment_methods || ['cod', 'online'];
+  const codEnabled = paymentMethods.includes('cod');
+  const onlineEnabled = paymentMethods.includes('online');
 
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -33,53 +98,205 @@ export default function MarketplaceOrderPage() {
   const [collegeName, setCollegeName] = useState('');
   const [requirement, setRequirement] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmittingCOD, setIsSubmittingCOD] = useState(false);
+  const [isSubmittingOnline, setIsSubmittingOnline] = useState(false);
+  const isSubmitting = isSubmittingCOD || isSubmittingOnline;
 
-  const handleSubmitOrder = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!customerName || !customerPhone || !customerEmail || !requirement) {
-      showToast({ type: 'error', title: 'Missing details', message: 'Fill in name, phone, email, and requirements.' });
-      return;
+  // Duplicate submission guard
+  const submittingRef = useRef(false);
+
+  const validateForm = useCallback((): boolean => {
+    if (!customerName.trim()) {
+      showToast({ type: 'error', title: 'Missing name', message: 'Please enter your full name.' });
+      return false;
     }
-    setIsSubmitting(true);
+    if (!customerPhone.trim()) {
+      showToast({ type: 'error', title: 'Missing phone', message: 'Please enter your phone number.' });
+      return false;
+    }
+    if (!customerEmail.trim()) {
+      showToast({ type: 'error', title: 'Missing email', message: 'Please enter your email address.' });
+      return false;
+    }
+    if (!requirement.trim()) {
+      showToast({ type: 'error', title: 'Missing requirements', message: 'Please describe what you need.' });
+      return false;
+    }
+    return true;
+  }, [customerName, customerPhone, customerEmail, requirement, showToast]);
+
+  const getSessionOrRedirect = useCallback(async () => {
+    const session = await getCurrentSession();
+    if (!session || !session.user?.id) {
+      showToast({
+        type: 'info',
+        title: 'Sign in required',
+        message: 'You must be signed in to submit orders. Redirecting to secure login...'
+      });
+      await performGoogleLogin(typeof window !== 'undefined' ? window.location.pathname : '/profile');
+      return null;
+    }
+    return session;
+  }, [showToast]);
+
+  // ── COD Order Flow ──────────────────────────────────────────
+  const handleCODOrder = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!validateForm() || submittingRef.current) return;
+
+    submittingRef.current = true;
+    setIsSubmittingCOD(true);
+
     try {
-      const session = await getCurrentSession();
-      if (!session || !session.user?.id) {
-        showToast({
-          type: 'info',
-          title: 'Sign in required',
-          message: 'You must be signed in to submit orders. Redirecting to secure login...'
-        });
-        await performGoogleLogin(typeof window !== 'undefined' ? window.location.pathname : '/profile');
-        return;
-      }
+      const session = await getSessionOrRedirect();
+      if (!session) { submittingRef.current = false; setIsSubmittingCOD(false); return; }
 
       const fileUrl = selectedFile ? await uploadOrderFileWeb(selectedFile) : null;
+
       await createOrder({
         product_id: product.id,
         user_id: session.user.id,
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        customer_email: customerEmail,
-        college_name: collegeName,
-        requirement,
+        customer_name: customerName.trim(),
+        customer_phone: customerPhone.trim(),
+        customer_email: customerEmail.trim(),
+        college_name: collegeName.trim() || null,
+        requirement: requirement.trim(),
         payment_method: 'cod',
+        payment_status: 'cod_pending',
         file_url: fileUrl,
       });
+
       showToast({
         type: 'success',
-        title: 'Order placed',
+        title: 'Order placed!',
         message: isReviewMode()
           ? 'Our academic team will process your order soon.'
-          : 'Our academic expert will contact you via WhatsApp soon.'
+          : 'Our academic expert will contact you via WhatsApp soon.',
       });
       await queryClient.invalidateQueries({ queryKey: ['user-orders'] });
       router.push('/orders');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Please try again.';
-      showToast({ type: 'error', title: 'Order submission failed', message });
+      showToast({ type: 'error', title: 'Order failed', message });
     } finally {
-      setIsSubmitting(false);
+      submittingRef.current = false;
+      setIsSubmittingCOD(false);
+    }
+  };
+
+  // ── Online Payment Flow ─────────────────────────────────────
+  const handleOnlinePayment = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!validateForm() || submittingRef.current) return;
+
+    if (!razorpayReady) {
+      showToast({ type: 'error', title: 'Payment unavailable', message: 'Payment gateway is loading. Please try again in a moment.' });
+      return;
+    }
+
+    submittingRef.current = true;
+    setIsSubmittingOnline(true);
+
+    try {
+      const session = await getSessionOrRedirect();
+      if (!session) { submittingRef.current = false; setIsSubmittingOnline(false); return; }
+
+      const fileUrl = selectedFile ? await uploadOrderFileWeb(selectedFile) : null;
+
+      // Step 1: Create Razorpay order from backend
+      const createResponse = await fetch('/api/razorpay/create-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: product.id }),
+      });
+
+      if (!createResponse.ok) {
+        const errData = await createResponse.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to create payment order');
+      }
+
+      const orderData = await createResponse.json();
+
+      // Step 2: Open Razorpay Checkout
+      const options: RazorpayOptions = {
+        key: orderData.key_id,
+        amount: orderData.amount,
+        currency: orderData.currency || 'INR',
+        name: 'CampusNinja',
+        description: product.title,
+        order_id: orderData.order_id,
+        handler: async (response: RazorpayResponse) => {
+          // Step 3: Verify payment on backend
+          try {
+            const verifyResponse = await fetch('/api/razorpay/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                product_id: product.id,
+                user_id: session.user.id,
+                customer_name: customerName.trim(),
+                customer_phone: customerPhone.trim(),
+                customer_email: customerEmail.trim(),
+                college_name: collegeName.trim() || null,
+                requirement: requirement.trim(),
+                file_url: fileUrl,
+              }),
+            });
+
+            const verifyData = await verifyResponse.json();
+
+            if (!verifyResponse.ok) {
+              throw new Error(verifyData.error || 'Payment verification failed');
+            }
+
+            showToast({
+              type: 'success',
+              title: 'Payment successful!',
+              message: `Order confirmed. Payment ID: ${response.razorpay_payment_id}`,
+            });
+            await queryClient.invalidateQueries({ queryKey: ['user-orders'] });
+            router.push('/orders');
+          } catch (verifyError: unknown) {
+            const msg = verifyError instanceof Error ? verifyError.message : 'Verification failed';
+            showToast({
+              type: 'error',
+              title: 'Payment verification failed',
+              message: `${msg}. If money was deducted, contact support.`,
+            });
+          } finally {
+            submittingRef.current = false;
+            setIsSubmittingOnline(false);
+          }
+        },
+        prefill: {
+          name: customerName.trim(),
+          email: customerEmail.trim(),
+          contact: customerPhone.trim(),
+        },
+        theme: { color: '#12233F' },
+        modal: {
+          ondismiss: () => {
+            submittingRef.current = false;
+            setIsSubmittingOnline(false);
+            showToast({
+              type: 'info',
+              title: 'Payment cancelled',
+              message: 'You closed the payment window. No charges were made.',
+            });
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (error: unknown) {
+      submittingRef.current = false;
+      setIsSubmittingOnline(false);
+      const message = error instanceof Error ? error.message : 'Please try again.';
+      showToast({ type: 'error', title: 'Payment failed', message });
     }
   };
 
@@ -100,6 +317,24 @@ export default function MarketplaceOrderPage() {
               <span className="text-3xl font-black text-white">Rs. {product.price}</span>
             </div>
           </Card>
+
+          {/* Payment methods indicator */}
+          <Card className="space-y-3">
+            <h2 className="flex items-center gap-2 text-sm font-black text-slate-950">
+              <Wallet className="h-4 w-4 text-blue-600" /> Payment options
+            </h2>
+            {codEnabled && (
+              <p className="flex items-center gap-2 text-sm text-slate-600">
+                <Truck className="h-4 w-4 text-emerald-500" /> Cash on Delivery available
+              </p>
+            )}
+            {onlineEnabled && (
+              <p className="flex items-center gap-2 text-sm text-slate-600">
+                <CreditCard className="h-4 w-4 text-blue-500" /> Online Payment (UPI, Cards, Wallets)
+              </p>
+            )}
+          </Card>
+
           <Card className="space-y-3">
             <h2 className="flex items-center gap-2 text-sm font-black text-slate-950"><ShieldCheck className="h-4 w-4 text-blue-600" /> Why order here?</h2>
             {['Verified subject specialists', 'Confidential request handling', 'Revisions when requirements change'].map((item) => (
@@ -113,7 +348,7 @@ export default function MarketplaceOrderPage() {
           <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-950">Submit service request</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">Attach reference files and describe the exact output you need.</p>
 
-          <form onSubmit={handleSubmitOrder} className="mt-6 space-y-4">
+          <form onSubmit={(e) => e.preventDefault()} className="mt-6 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <Field icon={User} label="Full name" required value={customerName} onChange={setCustomerName} placeholder="Rahul Sharma" />
               <Field icon={Phone} label={isReviewMode() ? "Phone number" : "WhatsApp number"} required value={customerPhone} onChange={setCustomerPhone} placeholder="+91 9876543210" />
@@ -142,13 +377,46 @@ export default function MarketplaceOrderPage() {
               />
             </label>
 
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className={`h-12 w-full rounded-2xl text-sm font-bold text-white transition ${isSubmitting ? 'cursor-not-allowed bg-slate-400' : 'bg-blue-600 hover:bg-blue-700'}`}
-            >
-              {isSubmitting ? 'Submitting request...' : `Confirm request - pay Rs. ${product.price} on delivery`}
-            </button>
+            {/* ── Payment Buttons ──────────────────────────────── */}
+            <div className="flex flex-col gap-3 pt-2">
+              {codEnabled && (
+                <button
+                  type="button"
+                  onClick={handleCODOrder}
+                  disabled={isSubmitting}
+                  className={`flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-bold text-white transition ${
+                    isSubmitting
+                      ? 'cursor-not-allowed bg-slate-400'
+                      : 'bg-emerald-600 hover:bg-emerald-700'
+                  }`}
+                >
+                  {isSubmittingCOD ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Placing order...</>
+                  ) : (
+                    <><Truck className="h-4 w-4" /> {onlineEnabled ? 'Buy with Cash on Delivery' : `Confirm request — pay Rs. ${product.price} on delivery`}</>
+                  )}
+                </button>
+              )}
+
+              {onlineEnabled && (
+                <button
+                  type="button"
+                  onClick={handleOnlinePayment}
+                  disabled={isSubmitting}
+                  className={`flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-sm font-bold text-white transition ${
+                    isSubmitting
+                      ? 'cursor-not-allowed bg-slate-400'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  {isSubmittingOnline ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Processing payment...</>
+                  ) : (
+                    <><CreditCard className="h-4 w-4" /> {codEnabled ? 'Pay Online' : `Pay Rs. ${product.price} Online`}</>
+                  )}
+                </button>
+              )}
+            </div>
           </form>
         </Card>
       </section>
