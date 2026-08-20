@@ -25,9 +25,10 @@ const fallbackSemesters: Semester[] = Array.from({ length: 8 }, (_, index) => ({
 
 export const HeroAcademicSelector: React.FC = () => {
   const router = useRouter();
-  const { branchId, semesterId, updateAcademicSetup } = useAcademic();
+  const { branchId, branchName, semesterId, semesterNum, updateAcademicSetup } = useAcademic();
   const { showToast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
+  const userInteractedRef = useRef(false);
 
   const [branches, setBranches] = useState<Branch[]>(fallbackBranches);
   const [semesters, setSemesters] = useState<Semester[]>(fallbackSemesters);
@@ -36,6 +37,7 @@ export const HeroAcademicSelector: React.FC = () => {
   const [selectedSem, setSelectedSem] = useState<Semester | null>(null);
   const [openDropdown, setOpenDropdown] = useState<'course' | 'branch' | 'semester' | null>(null);
 
+  // Fetch branches from Supabase
   useEffect(() => {
     getBranches()
       .then((data) => {
@@ -44,27 +46,52 @@ export const HeroAcademicSelector: React.FC = () => {
       .catch(() => undefined);
   }, []);
 
+  // Initial sync from AcademicContext (only runs if user hasn't manually selected yet)
   useEffect(() => {
-    if (!selectedBranch) return;
-    if (selectedBranch.id.startsWith('b-')) {
+    if (userInteractedRef.current) return;
+    if (branchId && branches.length && !selectedBranch) {
+      const found = branches.find(
+        (branch) => branch.id === branchId || (branchName && branch.name.toLowerCase() === branchName.toLowerCase())
+      );
+      if (found) {
+        setSelectedBranch(found);
+      }
+    }
+  }, [branchId, branchName, branches, selectedBranch]);
+
+  // Fetch semesters when selectedBranch changes
+  useEffect(() => {
+    if (!selectedBranch) {
       setSemesters(fallbackSemesters);
       return;
     }
-    getSemesters(selectedBranch.id)
-      .then((data) => setSemesters(data?.length ? data : fallbackSemesters))
-      .catch(() => setSemesters(fallbackSemesters));
-  }, [selectedBranch]);
 
-  useEffect(() => {
-    if (branchId && branches.length) {
-      const found = branches.find((branch) => branch.id === branchId);
-      if (found) setSelectedBranch(found);
+    if (selectedBranch.id.startsWith('b-')) {
+      setSemesters(fallbackSemesters);
+      if (!userInteractedRef.current && semesterId && !selectedSem) {
+        const found = fallbackSemesters.find(
+          (s) => s.id === semesterId || (semesterNum && s.number.toString() === semesterNum)
+        );
+        if (found) setSelectedSem(found);
+      }
+      return;
     }
-    if (semesterId && semesters.length) {
-      const found = semesters.find((semester) => semester.id === semesterId);
-      if (found) setSelectedSem(found);
-    }
-  }, [branchId, semesterId, branches, semesters]);
+
+    getSemesters(selectedBranch.id)
+      .then((data) => {
+        const sems = data?.length ? data : fallbackSemesters;
+        setSemesters(sems);
+        if (!userInteractedRef.current && semesterId && !selectedSem) {
+          const found = sems.find(
+            (s) => s.id === semesterId || (semesterNum && s.number.toString() === semesterNum)
+          );
+          if (found) setSelectedSem(found);
+        }
+      })
+      .catch(() => {
+        setSemesters(fallbackSemesters);
+      });
+  }, [selectedBranch, semesterId, semesterNum, selectedSem]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -137,6 +164,7 @@ export const HeroAcademicSelector: React.FC = () => {
               key={branch.id}
               selected={selectedBranch?.id === branch.id}
               onClick={() => {
+                userInteractedRef.current = true;
                 setSelectedBranch(branch);
                 setSelectedSem(null);
                 setOpenDropdown(null);
@@ -165,6 +193,7 @@ export const HeroAcademicSelector: React.FC = () => {
               key={semester.id}
               selected={selectedSem?.id === semester.id}
               onClick={() => {
+                userInteractedRef.current = true;
                 setSelectedSem(semester);
                 setOpenDropdown(null);
               }}
