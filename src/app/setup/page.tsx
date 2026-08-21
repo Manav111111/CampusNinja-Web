@@ -10,29 +10,25 @@ import { Branch, Semester } from '@/types';
 import { Skeleton } from '@/components/common/Skeleton';
 
 const fallbackBranches: Branch[] = [
-  { id: 'b-cse', name: 'Computer Science & Engineering' },
-  { id: 'b-it', name: 'Information Technology' },
-  { id: 'b-ece', name: 'Electronics & Communication Engineering' },
-  { id: 'b-mech', name: 'Mechanical Engineering' },
-  { id: 'b-civil', name: 'Civil Engineering' },
-  { id: 'b-ee', name: 'Electrical Engineering' },
+  { id: '765cd1af-e85e-4312-b9b5-c7308a28ed84', name: 'Computer Science Engineering' },
+  { id: 'bbeeda9b-4c51-41b1-85a0-7783c0eea999', name: 'Information Technology' },
+  { id: '8e71adee-3752-4489-a46b-055eed8a534e', name: 'Artificial Intelligence and Machine Learning' },
+  { id: '5f397ff9-1a9f-4584-924d-44ccf5bbebe4', name: 'Artificial Intelligence and Data Science' },
+  { id: '933f3fce-3c07-4afd-9153-c8943165ecd0', name: 'Electronics and Communication Engineering' },
+  { id: '1ea60456-3efd-4b86-bbec-148add0f14c1', name: 'Mechanical Engineering' },
+  { id: '68e08958-2768-4472-9f97-4f7249dba26c', name: 'Civil Engineering' },
+  { id: '8a4356cd-b6a0-40a9-a8a2-1fdb6c1f45af', name: 'Computer Science ' },
+  { id: '684780f7-017c-4e9c-91d7-b0d4a1207391', name: 'Computer Science and Technology' },
 ];
-
-const fallbackSemesters: Semester[] = Array.from({ length: 8 }, (_, index) => ({
-  id: `s-${index + 1}`,
-  branch_id: 'all',
-  number: index + 1,
-}));
 
 export default function SetupPage() {
   const router = useRouter();
   const { branchId, branchName, semesterId, semesterNum, updateAcademicSetup } = useAcademic();
   const { showToast } = useToast();
   const containerRef = useRef<HTMLDivElement>(null);
-  const userInteractedRef = useRef(false);
 
   const [branches, setBranches] = useState<Branch[]>(fallbackBranches);
-  const [semesters, setSemesters] = useState<Semester[]>(fallbackSemesters);
+  const [semesters, setSemesters] = useState<Semester[]>([]);
   const [loadingBranches, setLoadingBranches] = useState(true);
   const [loadingSemesters, setLoadingSemesters] = useState(false);
 
@@ -51,55 +47,67 @@ export default function SetupPage() {
       .catch(() => setLoadingBranches(false));
   }, []);
 
-  // Initial sync from AcademicContext (only runs if user hasn't manually selected yet)
+  // Initialize selectedBranch on mount from context or fallback to first branch
   useEffect(() => {
-    if (userInteractedRef.current) return;
-    if (branchId && branches.length && !selectedBranch) {
-      const found = branches.find(
-        (b) => b.id === branchId || (branchName && b.name.toLowerCase() === branchName.toLowerCase())
-      );
-      if (found) {
-        setSelectedBranch(found);
-      }
-    }
-  }, [branchId, branchName, branches, selectedBranch]);
+    if (!branches.length) return;
 
-  // Fetch semesters when selectedBranch changes
-  useEffect(() => {
-    if (!selectedBranch) {
-      setSemesters(fallbackSemesters);
-      return;
-    }
-
-    if (selectedBranch.id.startsWith('b-')) {
-      setSemesters(fallbackSemesters);
-      if (!userInteractedRef.current && semesterId && !selectedSem) {
-        const found = fallbackSemesters.find(
-          (s) => s.id === semesterId || (semesterNum && s.number.toString() === semesterNum)
-        );
-        if (found) setSelectedSem(found);
+    if (selectedBranch) {
+      const match = branches.find((b) => b.id === selectedBranch.id);
+      if (match && match !== selectedBranch) {
+        setSelectedBranch(match);
       }
       return;
     }
 
+    let initialBranch: Branch | undefined;
+    if (branchId) {
+      initialBranch = branches.find((b) => b.id === branchId);
+    }
+    if (!initialBranch && branchName) {
+      const norm = branchName.toLowerCase().replace(/[^a-z0-9]/g, '');
+      initialBranch = branches.find((b) => b.name.toLowerCase().replace(/[^a-z0-9]/g, '') === norm);
+    }
+    if (!initialBranch) {
+      initialBranch = branches[0];
+    }
+    setSelectedBranch(initialBranch);
+  }, [branches, branchId, branchName]);
+
+  // Fetch semesters whenever selectedBranch changes and auto-select semester
+  useEffect(() => {
+    if (!selectedBranch?.id) return;
+
+    let isMounted = true;
     setLoadingSemesters(true);
     getSemesters(selectedBranch.id)
       .then((data) => {
-        const sems = data?.length ? data : fallbackSemesters;
+        if (!isMounted) return;
+        const sems = data?.length ? data : [];
         setSemesters(sems);
-        if (!userInteractedRef.current && semesterId && !selectedSem) {
-          const found = sems.find(
-            (s) => s.id === semesterId || (semesterNum && s.number.toString() === semesterNum)
-          );
-          if (found) setSelectedSem(found);
+
+        if (!sems.length) {
+          setSelectedSem(null);
+          setLoadingSemesters(false);
+          return;
         }
+
+        // Auto-select semester: prefer current semester number or context semesterNum or first semester
+        const targetNum = selectedSem?.number || (semesterNum ? parseInt(semesterNum, 10) : 1);
+        const matched = sems.find((s) => s.number === targetNum) || sems[0];
+        setSelectedSem(matched);
         setLoadingSemesters(false);
       })
       .catch(() => {
-        setSemesters(fallbackSemesters);
-        setLoadingSemesters(false);
+        if (isMounted) {
+          setSemesters([]);
+          setLoadingSemesters(false);
+        }
       });
-  }, [selectedBranch, semesterId, semesterNum, selectedSem]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedBranch?.id]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -199,9 +207,7 @@ export default function SetupPage() {
                 key={branch.id}
                 selected={selectedBranch?.id === branch.id}
                 onClick={() => {
-                  userInteractedRef.current = true;
                   setSelectedBranch(branch);
-                  setSelectedSem(null);
                   setOpenDropdown(null);
                 }}
               >
@@ -234,7 +240,6 @@ export default function SetupPage() {
                 key={semester.id}
                 selected={selectedSem?.id === semester.id}
                 onClick={() => {
-                  userInteractedRef.current = true;
                   setSelectedSem(semester);
                   setOpenDropdown(null);
                 }}

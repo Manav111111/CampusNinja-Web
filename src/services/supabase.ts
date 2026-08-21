@@ -109,28 +109,18 @@ export const getSubjects = async (branchId: string, semesterId: string): Promise
     return [];
   }
 
-  let query = supabase
-    .from('subjects')
-    .select('*')
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true });
-
-  if (isValidUUID(branchId)) {
-    query = query.eq('branch_id', branchId);
-  } else {
-    query = query.or(`branch.ilike.%${branchId}%,branch_id.eq.${branchId}`);
-  }
-
-  if (isValidUUID(semesterId)) {
-    query = query.eq('semester_id', semesterId);
-  } else if (semesterId.startsWith('s-')) {
-    const semNum = semesterId.replace('s-', '');
-    query = query.or(`semester.eq.${semNum},semester.ilike.Semester ${semNum},semester.ilike.${semNum}`);
-  } else {
+  if (!isValidUUID(branchId) || !isValidUUID(semesterId)) {
+    console.warn(`getSubjects: invalid branchId or semesterId UUID: branchId="${branchId}", semesterId="${semesterId}"`);
     return [];
   }
 
-  const { data: subjects, error } = await query;
+  const { data: subjects, error } = await supabase
+    .from('subjects')
+    .select('*')
+    .eq('branch_id', branchId)
+    .eq('semester_id', semesterId)
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
 
   if (error) {
     console.error('Error fetching subjects:', error);
