@@ -8,13 +8,22 @@ const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-const razorpay = new Razorpay({
-  key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
-});
+export const dynamic = 'force-dynamic';
+
+function getRazorpayClient() {
+  const key_id = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+  const key_secret = process.env.RAZORPAY_KEY_SECRET;
+
+  if (!key_id || !key_secret) {
+    throw new Error('Razorpay credentials are not configured on the server.');
+  }
+
+  return new Razorpay({ key_id, key_secret });
+}
 
 export async function POST(request: NextRequest) {
   try {
+    const razorpay = getRazorpayClient();
     const body = await request.json();
     const { product_id } = body;
 
