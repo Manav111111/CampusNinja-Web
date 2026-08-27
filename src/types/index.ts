@@ -1,3 +1,14 @@
+export interface BranchSubject {
+  id: string;
+  branch_id: string;
+  semester_id: string;
+  subject_id: string;
+  sort_order: number;
+  is_active: boolean;
+  subjects?: Subject;
+  branches?: Branch;
+  semesters?: Semester;
+}
 export interface Branch {
   id: string;
   name: string;

@@ -119,73 +119,85 @@ export const getSubjects = async (branchId: string, semesterId: string): Promise
     return [];
   }
 
-  const { data: subjects, error } = await supabase
-    .from('subjects')
-    .select('*')
-    .eq('branch_id', branchId)
-    .eq('semester_id', semesterId)
-    .eq('is_active', true)
-    .order('sort_order', { ascending: true });
+  let rawSubjects: Subject[] = [];
 
-  if (error) {
-    console.error('Error fetching subjects:', error);
-    throw error;
-  }
-
-  if (!subjects || subjects.length === 0) return [];
-
+  // 1. Primary Query: Read assignments from relational branch_subjects junction table
   try {
-    const subjectNames = subjects.map(s => (s.name || s.title || '').trim()).filter(Boolean);
-    if (subjectNames.length > 0) {
-      const { data: matchingSubs } = await supabase
-        .from('subjects')
-        .select('id, name')
-        .in('name', subjectNames);
+    const { data: bsData, error: bsError } = await supabase
+      .from('branch_subjects')
+      .select('id, sort_order, is_active, subjects(*)')
+      .eq('branch_id', branchId)
+      .eq('semester_id', semesterId)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
 
-      if (matchingSubs && matchingSubs.length > 0) {
-        const subIdToName: Record<string, string> = {};
-        matchingSubs.forEach(m => {
-          if (m.name) subIdToName[m.id] = m.name.trim().toLowerCase();
-        });
-        const allMatchingIds = matchingSubs.map(m => m.id);
-
-        const { data: resources } = await supabase
-          .from('resources')
-          .select('subject_id, type')
-          .in('subject_id', allMatchingIds)
-          .eq('is_active', true);
-
-        const countsByName: Record<string, { total: number; notes: number; pyqs: number; videos: number }> = {};
-        if (resources) {
-          resources.forEach(r => {
-            const nameKey = subIdToName[r.subject_id];
-            if (nameKey) {
-              if (!countsByName[nameKey]) {
-                countsByName[nameKey] = { total: 0, notes: 0, pyqs: 0, videos: 0 };
-              }
-              countsByName[nameKey].total += 1;
-              const t = (r.type || '').toLowerCase();
-              if (t === 'notes' || t === 'note') countsByName[nameKey].notes += 1;
-              else if (t === 'pyqs' || t === 'pyq') countsByName[nameKey].pyqs += 1;
-              else if (t === 'video' || t === 'videos') countsByName[nameKey].videos += 1;
-            }
-          });
-        }
-
-        return subjects.map(s => {
-          const key = (s.name || s.title || '').trim().toLowerCase();
+    if (!bsError && bsData && bsData.length > 0) {
+      rawSubjects = bsData
+        .map(bs => {
+          const s = (bs as any).subjects;
+          if (!s || s.is_active === false) return null;
           return {
             ...s,
-            counts: countsByName[key] || { total: 0, notes: 0, pyqs: 0, videos: 0 }
+            sort_order: bs.sort_order ?? s.sort_order ?? 0,
+            _assignment_id: bs.id,
           };
-        });
-      }
+        })
+        .filter(Boolean) as Subject[];
     }
+  } catch (err) {
+    console.warn('branch_subjects query exception:', err);
+  }
+
+  // 2. Legacy Fallback (temporary transition for unmigrated entries)
+  if (rawSubjects.length === 0) {
+    const { data: legacySubjects, error: legacyError } = await supabase
+      .from('subjects')
+      .select('*')
+      .eq('branch_id', branchId)
+      .eq('semester_id', semesterId)
+      .eq('is_active', true)
+      .order('sort_order', { ascending: true });
+
+    if (!legacyError && legacySubjects && legacySubjects.length > 0) {
+      console.warn(`[Legacy Notice] Loaded subjects via legacy branch_id/semester_id for branch=${branchId}, sem=${semesterId}`);
+      rawSubjects = legacySubjects;
+    }
+  }
+
+  if (rawSubjects.length === 0) return [];
+
+  // Fetch resource counts directly by master subject_id
+  try {
+    const subjectIds = rawSubjects.map(s => s.id);
+    const { data: resources } = await supabase
+      .from('resources')
+      .select('subject_id, type')
+      .in('subject_id', subjectIds)
+      .eq('is_active', true);
+
+    const countsById: Record<string, { total: number; notes: number; pyqs: number; videos: number }> = {};
+    if (resources) {
+      resources.forEach(r => {
+        if (!countsById[r.subject_id]) {
+          countsById[r.subject_id] = { total: 0, notes: 0, pyqs: 0, videos: 0 };
+        }
+        countsById[r.subject_id].total += 1;
+        const t = (r.type || '').toLowerCase();
+        if (t === 'notes' || t === 'note') countsById[r.subject_id].notes += 1;
+        else if (t === 'pyqs' || t === 'pyq') countsById[r.subject_id].pyqs += 1;
+        else if (t === 'video' || t === 'videos') countsById[r.subject_id].videos += 1;
+      });
+    }
+
+    return rawSubjects.map(s => ({
+      ...s,
+      counts: countsById[s.id] || { total: 0, notes: 0, pyqs: 0, videos: 0 }
+    }));
   } catch (err) {
     console.warn('Could not fetch resource counts for subjects:', err);
   }
 
-  return subjects.map(s => ({
+  return rawSubjects.map(s => ({
     ...s,
     counts: { total: 0, notes: 0, pyqs: 0, videos: 0 }
   }));
