@@ -152,8 +152,6 @@ export const Navbar: React.FC = () => {
                   </div>
                   <div className="py-2 text-sm font-medium text-slate-700">
                     <Link href="/profile" onClick={() => setShowProfileMenu(false)} className="block rounded-lg px-3 py-2 hover:bg-slate-50">Profile & Settings</Link>
-                    <Link href="/orders" onClick={() => setShowProfileMenu(false)} className="block rounded-lg px-3 py-2 hover:bg-slate-50">Orders & Requests</Link>
-                    <Link href="/bookmarks" onClick={() => setShowProfileMenu(false)} className="block rounded-lg px-3 py-2 hover:bg-slate-50">Saved Resources</Link>
                     <Link href="/setup" onClick={() => setShowProfileMenu(false)} className="block rounded-lg px-3 py-2 text-blue-600 hover:bg-blue-50">Change Branch & Sem</Link>
                   </div>
                 </div>
