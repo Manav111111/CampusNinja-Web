@@ -589,197 +589,59 @@ export const getStorageUrl = (path: string): string => {
 };
 
 // ============================================================
-// DYNAMIC SYLLABUS SERVICES
+// DYNAMIC SYLLABUS SERVICES & SUBJECT RESOLUTION
 // ============================================================
 
 /**
- * Standard Curated Fallbacks for initial development / offline fallback
- */
-const DEFAULT_SYLLABUS_MAP: Record<string, { fileName: string; units: { title: string; topics: string[] }[] }> = {
-  'applied-mathematics-1': {
-    fileName: 'Applied_Mathematics_1_Syllabus.pdf',
-    units: [
-      {
-        title: 'Matrices',
-        topics: [
-          'Definition of matrix and types of matrices',
-          'Elementary row and column operations',
-          'Echelon form and Normal form of a matrix',
-          'Rank of a matrix and nullity',
-          'Linear dependence and independence of vectors',
-        ],
-      },
-      {
-        title: 'Determinants',
-        topics: [
-          'Properties of determinants & algebraic evaluation',
-          'Minors, cofactors, and adjoint matrices',
-          'Inverse of a non-singular matrix',
-          'Cramer’s rule for solving linear systems',
-        ],
-      },
-      {
-        title: 'System of Linear Equations',
-        topics: [
-          'Consistency and inconsistency of linear systems',
-          'Homogeneous and non-homogeneous systems',
-          'Gauss elimination method and Gauss-Jordan method',
-          'Eigenvalues, Eigenvectors, and Cayley-Hamilton Theorem',
-        ],
-      },
-      {
-        title: 'Vector Algebra',
-        topics: [
-          'Vectors in 2D & 3D coordinate geometry',
-          'Scalar (dot) product and Vector (cross) product',
-          'Scalar triple product and Vector triple product',
-          'Geometrical and physical applications of vectors',
-        ],
-      },
-      {
-        title: 'Differential Calculus',
-        topics: [
-          'Successive differentiation and Leibnitz’s Theorem',
-          'Partial derivatives and Total derivative',
-          'Euler’s Theorem on homogeneous functions',
-          'Taylor’s and Maclaurin’s series for two variables',
-        ],
-      },
-      {
-        title: 'Integral Calculus',
-        topics: [
-          'Definite integrals and Reduction formulae',
-          'Double and Triple integrals evaluation',
-          'Change of order of integration',
-          'Applications to areas, volumes, and center of gravity',
-        ],
-      },
-      {
-        title: 'Applications of Calculus',
-        topics: [
-          'Tangents, Normals, and Asymptotes',
-          'Curvature, Radius of curvature, and Evolutes',
-          'Maxima and Minima of functions of two variables',
-          'Lagrange’s method of undetermined multipliers',
-        ],
-      },
-    ],
-  },
-  'environmental-science': {
-    fileName: 'Environmental_Science_Syllabus.pdf',
-    units: [
-      {
-        title: 'Ecosystems & Biodiversity',
-        topics: [
-          'Concept of an ecosystem, structure and function',
-          'Producers, consumers, and decomposers in food chains',
-          'Biodiversity at global, national, and local levels',
-          'Threats to biodiversity: habitat loss and conservation',
-        ],
-      },
-      {
-        title: 'Natural Resources & Management',
-        topics: [
-          'Forest resources: Use, over-exploitation, deforestation',
-          'Water resources: Surface and groundwater management',
-          'Renewable and non-renewable energy resources',
-        ],
-      },
-      {
-        title: 'Environmental Pollution & Control',
-        topics: [
-          'Air, Water, and Soil pollution causes and control',
-          'Solid waste management techniques',
-          'Disaster management: Floods, earthquakes, cyclones',
-        ],
-      },
-      {
-        title: 'Social Issues & Environmental Ethics',
-        topics: [
-          'Sustainable development practices',
-          'Water harvesting and watershed management',
-          'Environmental protection acts and policies',
-        ],
-      },
-    ],
-  },
-  'engineering-graphics': {
-    fileName: 'Engineering_Graphics_Syllabus.pdf',
-    units: [
-      {
-        title: 'Drafting Principles & Scales',
-        topics: [
-          'Drawing instruments, sheet layout, and lettering',
-          'Dimensioning systems and geometric constructions',
-          'Plain scales, diagonal scales, and vernier scales',
-        ],
-      },
-      {
-        title: 'Engineering Curves & Conics',
-        topics: [
-          'Conic sections: Ellipse, Parabola, and Hyperbola',
-          'Cycloidal curves: Cycloid, Epicycloid, Hypocycloid',
-          'Involutes of regular polygons and circles',
-        ],
-      },
-      {
-        title: 'Orthographic Projections',
-        topics: [
-          'First angle and Third angle projection methods',
-          'Projections of points in all quadrants',
-          'Projections of straight lines inclined to planes',
-        ],
-      },
-      {
-        title: 'Projections & Section of Solids',
-        topics: [
-          'Projections of prisms, pyramids, cylinders, cones',
-          'Section planes and true shapes of sections',
-          'Development of lateral surfaces',
-        ],
-      },
-      {
-        title: 'Isometric Projections & CAD',
-        topics: [
-          'Isometric scale, isometric axes, and isometric views',
-          'Conversion of orthographic views into isometric views',
-          'Basic AutoCAD 2D drafting commands',
-        ],
-      },
-    ],
-  },
-};
-
-/**
- * Resolves a subject identifier (UUID or slug / name) to a subject record
+ * Resolves a subject ID or slug to a real subject record from the database.
  */
 export const resolveSubjectRecord = async (subjectIdOrSlug: string): Promise<Subject | null> => {
   if (!subjectIdOrSlug) return null;
 
+  // 1. If valid UUID, query directly by id
   if (isValidUUID(subjectIdOrSlug)) {
     const { data } = await supabase
       .from('subjects')
       .select('*')
       .eq('id', subjectIdOrSlug)
       .maybeSingle();
+
     if (data) return data;
   }
 
-  // Look up by exact slug / clean match
-  const cleanName = subjectIdOrSlug.replace(/-/g, ' ').trim();
-  const { data } = await supabase
+  // 2. Try slug/name match (e.g. "applied-mathematics-1" -> "applied mathematics 1")
+  const normalized = subjectIdOrSlug.replace(/-/g, ' ').trim();
+  const { data: nameMatch } = await supabase
     .from('subjects')
     .select('*')
-    .ilike('name', `%${cleanName}%`)
+    .ilike('name', `%${normalized}%`)
     .limit(1)
     .maybeSingle();
-  return data || null;
+
+  if (nameMatch) return nameMatch;
+
+  // 3. Try title match
+  const { data: titleMatch } = await supabase
+    .from('subjects')
+    .select('*')
+    .ilike('title', `%${normalized}%`)
+    .limit(1)
+    .maybeSingle();
+
+  if (titleMatch) return titleMatch;
+
+  return null;
 };
 
-export const getSubjectDetails = resolveSubjectRecord;
+/**
+ * Returns subject details by subjectId or slug
+ */
+export const getSubjectDetails = async (subjectIdOrSlug: string): Promise<Subject | null> => {
+  return resolveSubjectRecord(subjectIdOrSlug);
+};
 
 /**
- * Fetches the dynamic syllabus, units, and nested topics for a subject
+ * Standard Curated Fallbacks for initial development / offline fallback
  */
 export const getSubjectSyllabus = async (subjectIdOrSlug: string): Promise<SubjectSyllabus | null> => {
   if (!subjectIdOrSlug) return null;
@@ -859,37 +721,7 @@ export const getSubjectSyllabus = async (subjectIdOrSlug: string): Promise<Subje
     console.warn('Supabase syllabus query exception:', err);
   }
 
-  // Check fallback match
-  const slugKey = subjectIdOrSlug.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  const fallback = DEFAULT_SYLLABUS_MAP[slugKey] || 
-    (subject?.name ? DEFAULT_SYLLABUS_MAP[subject.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')] : null);
-
-  if (fallback) {
-    return {
-      id: `fallback-${slugKey}`,
-      subject_id: targetId,
-      file_url: null,
-      file_name: fallback.fileName,
-      file_path: null,
-      units: fallback.units.map((u, idx) => ({
-        id: `fb-unit-${idx + 1}`,
-        syllabus_id: `fallback-${slugKey}`,
-        subject_id: targetId,
-        unit_number: idx + 1,
-        title: u.title,
-        description: null,
-        sort_order: idx + 1,
-        topics: u.topics.map((t, tIdx) => ({
-          id: `fb-top-${idx + 1}-${tIdx + 1}`,
-          unit_id: `fb-unit-${idx + 1}`,
-          title: t,
-          description: null,
-          sort_order: tIdx + 1,
-        })),
-      })),
-    };
-  }
-
+  // No fallback mock arrays: database is the single source of truth
   return null;
 };
 

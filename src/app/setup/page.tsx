@@ -245,13 +245,13 @@ export default function SetupPage() {
       </svg>
 
       {/* ── MAIN CONTAINER ── */}
-      <div className="mx-auto w-full max-w-[1380px] px-5 sm:px-8 lg:px-12 pt-6 sm:pt-8 pb-20">
+      <div className="mx-auto w-full max-w-[1380px] px-4 sm:px-8 lg:px-12 pt-4 sm:pt-6 lg:pt-8 pb-14 sm:pb-20">
         
         {/* ── TOP BACK NAVIGATION ── */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-4 sm:mb-6 flex items-center justify-between">
           <Link 
             href="/subjects" 
-            className="group inline-flex items-center gap-2 text-[13.5px] font-[500] text-[#55606E] transition-colors hover:text-[#151B24]"
+            className="group inline-flex items-center gap-2 text-[13px] sm:text-[13.5px] font-[500] text-[#55606E] transition-colors hover:text-[#151B24]"
           >
             <ArrowLeft className="h-4 w-4 stroke-[1.8] transition-transform duration-200 group-hover:-translate-x-1" />
             <span>Back to Courses</span>
@@ -259,24 +259,24 @@ export default function SetupPage() {
         </div>
 
         {/* ── HERO & STEP INDICATOR SECTION ── */}
-        <div className="relative mb-10 grid items-center gap-8 lg:grid-cols-[1.3fr_auto_1fr]">
+        <div className="relative mb-6 sm:mb-10 grid items-center gap-6 sm:gap-8 lg:grid-cols-[1.3fr_auto_1fr]">
           
           {/* Left: Main Heading & Eyebrow */}
           <div className="flex flex-col items-start">
             {/* Technical Eyebrow */}
-            <div className="flex items-center gap-3 mb-2.5">
-              <span className="font-mono text-[11px] font-[600] uppercase tracking-[0.22em] text-[#717E8C]">
+            <div className="flex items-center gap-3 mb-2 sm:mb-2.5">
+              <span className="font-mono text-[10.5px] sm:text-[11px] font-[600] uppercase tracking-[0.20em] sm:tracking-[0.22em] text-[#717E8C]">
                 01 &nbsp;—&nbsp; ACADEMIC SETUP &nbsp;·&nbsp; STEP {currentStep} OF 3
               </span>
             </div>
 
             {/* Main Heading */}
-            <h1 className="text-[36px] sm:text-[46px] lg:text-[50px] font-[650] leading-[1.08] tracking-[-0.04em] text-[#151B24]">
+            <h1 className="text-[30px] sm:text-[44px] lg:text-[50px] font-[650] leading-[1.08] tracking-[-0.04em] text-[#151B24]">
               Select your branch
             </h1>
 
             {/* Description */}
-            <p className="mt-3.5 max-w-[540px] text-[15px] sm:text-[16px] font-[400] leading-[1.65] text-[#55606E]">
+            <p className="mt-2.5 sm:mt-3.5 max-w-[540px] text-[14.5px] sm:text-[16px] font-[400] leading-[1.6] text-[#55606E]">
               Choose your branch to get subjects, notes, PYQs, syllabus and resources tailored for you.
             </p>
           </div>

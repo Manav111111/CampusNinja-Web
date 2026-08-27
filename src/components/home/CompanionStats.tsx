@@ -32,7 +32,7 @@ export const CompanionStats: React.FC = () => {
   ];
 
   return (
-    <div className="relative w-full overflow-hidden rounded-[18px] bg-[#111822] p-7 md:p-8 text-white shadow-xl">
+    <div className="relative w-full overflow-hidden rounded-[18px] bg-[#111822] p-4 sm:p-7 md:p-8 text-white shadow-xl">
       
       {/* Decorative background contour lines */}
       <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-20" viewBox="0 0 1200 160" fill="none">
@@ -40,26 +40,26 @@ export const CompanionStats: React.FC = () => {
         <circle cx="600" cy="80" r="2.5" fill="#fff" opacity="0.4" />
       </svg>
 
-      <div className="relative grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-white/[0.08]">
+      <div className="relative grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-white/[0.08]">
         {stats.map((item, idx) => (
           <div 
             key={item.label}
-            className={`flex items-center gap-4 ${idx > 0 ? 'lg:pl-8' : ''}`}
+            className={`flex items-center gap-3 sm:gap-4 ${idx > 0 ? 'lg:pl-8' : ''}`}
           >
             {/* Glass Icon Box */}
-            <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] shadow-inner">
+            <div className="flex h-10 w-10 sm:h-[52px] sm:w-[52px] shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] shadow-inner">
               {item.icon}
             </div>
 
             {/* Numbers & Label */}
             <div className="flex flex-col">
-              <span className="text-[28px] font-[700] tracking-[-0.03em] text-white leading-none">
+              <span className="text-[20px] sm:text-[28px] font-[700] tracking-[-0.03em] text-white leading-none">
                 {item.value}
               </span>
-              <span className="mt-1 text-[15px] font-[600] text-[#E0E5EC]">
+              <span className="mt-1 text-[13px] sm:text-[15px] font-[600] text-[#E0E5EC]">
                 {item.label}
               </span>
-              <span className="text-[12px] text-[#8692A2]">
+              <span className="text-[11px] sm:text-[12px] text-[#8692A2] truncate">
                 {item.sub}
               </span>
             </div>

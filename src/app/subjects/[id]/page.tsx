@@ -392,6 +392,11 @@ export default function SubjectDetailPage() {
                           {/* Expandable Topics Content */}
                           {isExpanded && (
                             <div className="pb-4 pt-1 pl-[115px] sm:pl-[150px] pr-4 animate-soft-in">
+                              {unitItem.description && (
+                                <p className="text-xs text-[#5E6873] mb-3 italic">
+                                  {unitItem.description}
+                                </p>
+                              )}
                               {topics.length === 0 ? (
                                 <p className="text-xs text-[#8692A2] italic">No topic details added for this unit yet.</p>
                               ) : (

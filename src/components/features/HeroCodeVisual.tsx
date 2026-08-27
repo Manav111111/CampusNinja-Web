@@ -10,7 +10,7 @@ interface HeroCodeVisualProps {
 
 export const HeroCodeVisual: React.FC<HeroCodeVisualProps> = ({ onOpenStudyHub }) => {
   return (
-    <div className="relative flex h-[500px] w-[500px] max-w-full items-center justify-center pointer-events-none select-none">
+    <div className="relative flex h-[320px] sm:h-[420px] lg:h-[500px] w-[320px] sm:w-[420px] lg:w-[500px] max-w-full items-center justify-center pointer-events-none select-none mx-auto scale-[0.78] sm:scale-90 lg:scale-100 origin-center">
       
       {/* ── PERSPECTIVE TECHNICAL FLOOR ── */}
       <div 

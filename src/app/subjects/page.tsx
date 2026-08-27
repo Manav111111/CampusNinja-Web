@@ -70,13 +70,13 @@ export default function SubjectsPage() {
       </svg>
 
       {/* ── MAIN CONTENT CONTAINER ── */}
-      <div className="mx-auto w-full px-[24px] lg:px-[54px] xl:px-[84px] pt-[24px] lg:pt-[32px] pb-[80px]">
+      <div className="mx-auto w-full px-4 sm:px-6 lg:px-[54px] xl:px-[84px] pt-4 sm:pt-6 lg:pt-[32px] pb-12 sm:pb-16 lg:pb-[80px]">
         
         {/* ── BACK LINK & SWITCH BRANCH ── */}
-        <div className="mb-[24px] flex items-center justify-between">
+        <div className="mb-4 sm:mb-6 flex items-center justify-between">
           <Link 
             href="/" 
-            className="inline-flex items-center gap-2 text-[14px] font-[500] text-[#5F6873] transition-colors hover:text-[#171B21]"
+            className="inline-flex items-center gap-2 text-[13.5px] sm:text-[14px] font-[500] text-[#5F6873] transition-colors hover:text-[#171B21]"
           >
             <ArrowLeft className="h-4 w-4 stroke-[1.8]" />
             <span>Back to Home</span>
@@ -84,7 +84,7 @@ export default function SubjectsPage() {
 
           <button
             onClick={() => setShowFilterModal(true)}
-            className="inline-flex items-center gap-1.5 rounded-[8px] border border-[rgba(23,27,33,0.12)] bg-white/40 px-3 py-1.5 text-[12.5px] font-[500] text-[#3E4852] transition hover:bg-white/80"
+            className="inline-flex items-center gap-1.5 rounded-[8px] border border-[rgba(23,27,33,0.12)] bg-white/40 px-3 py-1.5 text-[12px] sm:text-[12.5px] font-[500] text-[#3E4852] transition hover:bg-white/80"
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
             <span>Change Branch / Sem</span>
@@ -92,23 +92,23 @@ export default function SubjectsPage() {
         </div>
 
         {/* ── HERO SECTION ── */}
-        <div className="grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid items-center gap-6 lg:gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           
           {/* Left: Typography & Headings */}
           <div className="flex flex-col items-start">
             {/* Small Technical System Eyebrow */}
-            <span className="font-mono-spec text-[11px] font-[500] uppercase tracking-[0.25em] text-[#7C8490] mb-[18px]">
+            <span className="font-mono-spec text-[11px] font-[500] uppercase tracking-[0.25em] text-[#7C8490] mb-3 sm:mb-[18px]">
               SUBJECT MATERIALS
             </span>
 
             {/* Exact 2-Line Controlled Heading */}
-            <h1 className="text-[clamp(44px,4.2vw,68px)] font-[650] leading-[0.98] tracking-[-0.055em] text-[#20252B]">
+            <h1 className="text-[32px] sm:text-[46px] lg:text-[clamp(44px,4.2vw,68px)] font-[650] leading-[1.04] tracking-[-0.045em] text-[#20252B]">
               {branchName || 'Computer Science'}<br />
               Semester {semesterNum || '1'}
             </h1>
 
             {/* Subtitle */}
-            <p className="mt-[20px] text-[17px] font-[400] leading-[1.6] text-[#5F6873]">
+            <p className="mt-3 sm:mt-[20px] text-[15px] sm:text-[17px] font-[400] leading-[1.6] text-[#5F6873]">
               Everything you need to learn, practice, and excel.
             </p>
           </div>
@@ -121,7 +121,7 @@ export default function SubjectsPage() {
         </div>
 
         {/* ── SUBJECT CARDS 3-COLUMN GRID ── */}
-        <div className="mt-[54px] grid grid-cols-1 gap-x-[72px] gap-y-[38px] sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 sm:mt-10 lg:mt-[54px] grid grid-cols-1 gap-x-6 sm:gap-x-10 lg:gap-x-[72px] gap-y-3.5 sm:gap-y-6 lg:gap-y-[38px] sm:grid-cols-2 lg:grid-cols-3">
           {displaySubjects.map((sub, idx) => {
             // Place 7th card specifically in column 2 on desktop!
             const isSeventh = idx === 6;

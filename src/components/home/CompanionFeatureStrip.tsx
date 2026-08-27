@@ -32,21 +32,21 @@ export const CompanionFeatureStrip: React.FC = () => {
   ];
 
   return (
-    <div className="w-full rounded-[18px] border border-[rgba(20,25,35,0.08)] bg-white/70 p-6 md:p-8 shadow-[0_10px_30px_rgba(20,25,35,0.025)] backdrop-blur-sm">
-      <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-[rgba(20,25,35,0.08)]">
+    <div className="w-full rounded-[18px] border border-[rgba(20,25,35,0.08)] bg-white/70 p-4 sm:p-6 md:p-8 shadow-[0_10px_30px_rgba(20,25,35,0.025)] backdrop-blur-sm">
+      <div className="grid grid-cols-1 gap-5 sm:gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-[rgba(20,25,35,0.08)]">
         {features.map((item, idx) => (
           <div 
             key={item.title} 
-            className={`flex items-start gap-4 ${idx > 0 ? 'lg:pl-8' : ''}`}
+            className={`flex items-start gap-3.5 sm:gap-4 ${idx > 0 ? 'lg:pl-8' : ''}`}
           >
-            <div className={`flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[14px] ${item.bg} shadow-2xs`}>
+            <div className={`flex h-11 w-11 sm:h-[52px] sm:w-[52px] shrink-0 items-center justify-center rounded-[12px] sm:rounded-[14px] ${item.bg} shadow-2xs`}>
               {item.icon}
             </div>
             <div className="flex flex-col">
-              <h4 className="whitespace-pre-line text-[16px] font-[650] leading-[1.3] text-[#17202B]">
+              <h4 className="whitespace-normal sm:whitespace-pre-line text-[15px] sm:text-[16px] font-[650] leading-[1.3] text-[#17202B]">
                 {item.title}
               </h4>
-              <p className="mt-2 text-[13px] leading-[1.55] text-[#616D7C]">
+              <p className="mt-1 sm:mt-2 text-[12.5px] sm:text-[13px] leading-[1.55] text-[#616D7C]">
                 {item.desc}
               </p>
             </div>

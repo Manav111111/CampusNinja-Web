@@ -18,7 +18,7 @@ export const AcademicCompanionSection: React.FC = () => {
   };
 
   return (
-    <section className="relative w-full overflow-hidden bg-[#F6F5F2] pt-[90px] pb-[80px] text-[#17202B] antialiased">
+    <section className="relative w-full overflow-hidden bg-[#F6F5F2] pt-10 sm:pt-16 lg:pt-[90px] pb-10 sm:pb-14 lg:pb-[80px] text-[#17202B] antialiased">
       
       {/* ── BACKGROUND SUBTLE TECHNICAL GRID & ATMOSPHERE ── */}
       <div 
@@ -40,22 +40,22 @@ export const AcademicCompanionSection: React.FC = () => {
       </svg>
 
       {/* ── MAIN CONTENT WRAPPER ── */}
-      <div className="mx-auto w-full max-w-[1420px] px-6 sm:px-12 lg:px-16">
+      <div className="mx-auto w-full max-w-[1420px] px-4 sm:px-8 lg:px-16">
         
         {/* ── TOP HERO COMPOSITION (2 COLUMNS) ── */}
-        <div className="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] xl:grid-cols-[1.2fr_0.8fr] pb-[64px]">
+        <div className="grid items-center gap-8 lg:gap-12 lg:grid-cols-[1.1fr_0.9fr] xl:grid-cols-[1.2fr_0.8fr] pb-8 sm:pb-12 lg:pb-[64px]">
           
           {/* Left Column: Headlines, CTAs, CN Floating Emblem */}
           <div className="flex flex-col items-start">
             
             {/* Pill Label */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(20,25,35,0.12)] bg-white/60 px-3.5 py-1.5 text-[13px] font-[550] text-[#2E7E5F] shadow-2xs mb-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(20,25,35,0.12)] bg-white/60 px-3.5 py-1.5 text-[12px] sm:text-[13px] font-[550] text-[#2E7E5F] shadow-2xs mb-4 sm:mb-6">
               <Sparkles className="h-3.5 w-3.5 fill-[#2E7E5F]" />
               <span>Your All-in-One Academic Companion</span>
             </div>
 
             {/* Main 3-Line Headline */}
-            <h2 className="text-[clamp(44px,4.3vw,68px)] font-[750] leading-[1.04] tracking-[-0.045em] text-[#15191F]">
+            <h2 className="text-[32px] sm:text-[44px] lg:text-[clamp(44px,4.3vw,68px)] font-[750] leading-[1.06] tracking-[-0.04em] text-[#15191F]">
               Learn Better.<br />
               Share Smarter.<br />
               <span className="relative inline-block text-[#2F7E64]">
@@ -68,18 +68,18 @@ export const AcademicCompanionSection: React.FC = () => {
             </h2>
 
             {/* Supporting Description */}
-            <p className="mt-[24px] max-w-[520px] text-[17px] font-[400] leading-[1.62] text-[#5A6673]">
-              Access the best study materials, PYQs, notes, videos, and more.<br />
+            <p className="mt-3.5 sm:mt-5 lg:mt-[24px] max-w-[520px] text-[15px] sm:text-[17px] font-[400] leading-[1.62] text-[#5A6673]">
+              Access the best study materials, PYQs, notes, videos, and more.<br className="hidden sm:inline" />
               Built by students, for students. All in one place.
             </p>
 
             {/* CTA Buttons */}
-            <div className="mt-[28px] flex flex-wrap items-center gap-4">
+            <div className="mt-5 sm:mt-7 lg:mt-[28px] flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
               {/* Primary CTA */}
               <button
                 type="button"
                 onClick={handleExplore}
-                className="group flex h-[50px] items-center justify-center gap-2 rounded-[11px] bg-[#121822] px-6 text-[15px] font-[600] text-white shadow-sm transition hover:bg-black active:scale-[0.98]"
+                className="group flex h-[48px] sm:h-[50px] w-full sm:w-auto items-center justify-center gap-2 rounded-[11px] bg-[#121822] px-6 text-[14.5px] sm:text-[15px] font-[600] text-white shadow-sm transition hover:bg-black active:scale-[0.98]"
               >
                 <span>Explore Study Hub</span>
                 <ArrowRight className="h-4 w-4 stroke-[2] transition-transform group-hover:translate-x-1" />
@@ -89,7 +89,7 @@ export const AcademicCompanionSection: React.FC = () => {
               <button
                 type="button"
                 onClick={handleExplore}
-                className="flex h-[50px] items-center justify-center gap-2.5 rounded-[11px] border border-[rgba(20,25,35,0.14)] bg-white/50 px-6 text-[15px] font-[600] text-[#1D252E] transition hover:bg-white shadow-2xs"
+                className="flex h-[48px] sm:h-[50px] w-full sm:w-auto items-center justify-center gap-2.5 rounded-[11px] border border-[rgba(20,25,35,0.14)] bg-white/50 px-6 text-[14.5px] sm:text-[15px] font-[600] text-[#1D252E] transition hover:bg-white shadow-2xs"
               >
                 <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#121822] text-white">
                   <Play className="h-2.5 w-2.5 fill-white translate-x-[0.5px]" />
@@ -99,8 +99,8 @@ export const AcademicCompanionSection: React.FC = () => {
             </div>
 
             {/* Trust Statement & College Badges */}
-            <div className="mt-[32px] flex flex-wrap items-center gap-3">
-              <span className="text-[14px] font-[450] text-[#616D7C]">
+            <div className="mt-5 sm:mt-7 lg:mt-[32px] flex flex-wrap items-center gap-3">
+              <span className="text-[13px] sm:text-[14px] font-[450] text-[#616D7C]">
                 Trusted by 50,000+ students from 500+ colleges
               </span>
               

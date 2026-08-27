@@ -135,32 +135,32 @@ export default function SkillsPage() {
       </svg>
 
       {/* ── MAIN CONTENT CONTAINER ── */}
-      <div className="mx-auto w-full px-[24px] lg:px-[54px] xl:px-[84px] pt-[24px] lg:pt-[32px] pb-[80px]">
+      <div className="mx-auto w-full px-4 sm:px-6 lg:px-[54px] xl:px-[84px] pt-4 sm:pt-6 lg:pt-[32px] pb-12 sm:pb-16 lg:pb-[80px]">
         
         {/* ── BACK LINK ── */}
         <Link 
           href="/" 
-          className="inline-flex items-center gap-2 text-[14px] font-[500] text-[#5F6873] transition-colors hover:text-[#171B21] mb-[24px]"
+          className="inline-flex items-center gap-2 text-[13.5px] sm:text-[14px] font-[500] text-[#5F6873] transition-colors hover:text-[#171B21] mb-4 sm:mb-[24px]"
         >
           <ArrowLeft className="h-4 w-4 stroke-[1.8]" />
           <span>Back to Home</span>
         </Link>
 
         {/* ── HERO SECTION ── */}
-        <div className="grid items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+        <div className="grid items-center gap-6 lg:gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           
           {/* Left: Typography & Headings */}
           <div className="flex flex-col items-start">
-            <span className="font-mono-spec text-[11px] font-[500] uppercase tracking-[0.25em] text-[#7C8490] mb-[18px]">
+            <span className="font-mono-spec text-[11px] font-[500] uppercase tracking-[0.25em] text-[#7C8490] mb-3 sm:mb-[18px]">
               03 — INDUSTRY ROADMAPS
             </span>
 
-            <h1 className="text-[clamp(44px,4.2vw,68px)] font-[650] leading-[0.98] tracking-[-0.055em] text-[#20252B]">
+            <h1 className="text-[32px] sm:text-[46px] lg:text-[clamp(44px,4.2vw,68px)] font-[650] leading-[1.04] tracking-[-0.045em] text-[#20252B]">
               Engineering Skills.<br />
               Career Roadmaps.
             </h1>
 
-            <p className="mt-[20px] text-[17px] font-[400] leading-[1.6] text-[#5F6873] max-w-[580px]">
+            <p className="mt-3 sm:mt-[20px] text-[15px] sm:text-[17px] font-[400] leading-[1.6] text-[#5F6873] max-w-[580px]">
               Placement-ready tracks, curated coding roadmaps, and hands-on project tutorials built to level up your engineering career.
             </p>
           </div>
@@ -173,14 +173,14 @@ export default function SkillsPage() {
         </div>
 
         {/* ── CATEGORY FILTER NAVIGATION ── */}
-        <div className="mt-[36px] flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-6 sm:mt-[36px] flex flex-col gap-3.5 sm:gap-4 sm:flex-row sm:items-center sm:justify-between">
           
           {/* Left Horizontal Category Tabs */}
-          <div className="flex flex-wrap items-center gap-[14px]">
+          <div className="flex items-center gap-2.5 sm:gap-[14px] overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
             {categories.map((cat) => {
               const isActive = activeCategory === cat.id;
               return (
-                <div key={cat.id} className="relative">
+                <div key={cat.id} className="relative shrink-0">
                   {/* Subtle Technical Corner Brackets */}
                   {isActive && (
                     <>
@@ -193,7 +193,7 @@ export default function SkillsPage() {
 
                   <button
                     onClick={() => setActiveCategory(cat.id)}
-                    className={`flex h-[48px] items-center gap-[10px] rounded-[8px] px-[22px] text-[14px] font-[500] transition-all duration-200 ${
+                    className={`flex h-[42px] sm:h-[48px] items-center gap-2 sm:gap-[10px] rounded-[8px] px-3.5 sm:px-[22px] text-[13px] sm:text-[14px] font-[500] transition-all duration-200 ${
                       isActive
                         ? 'bg-[#171C22] text-[#F4F3F0] shadow-sm'
                         : 'border border-[rgba(23,27,33,0.12)] bg-[rgba(255,255,255,0.30)] text-[#3E4852] hover:bg-white/60'
@@ -212,16 +212,16 @@ export default function SkillsPage() {
           {/* Right Filter Button */}
           <button
             onClick={() => setActiveCategory('all')}
-            className="flex h-[44px] items-center gap-2 self-start sm:self-auto rounded-[6px] bg-[#171C22] px-[20px] text-[14px] font-[500] text-white transition hover:bg-black shadow-sm"
+            className="flex h-[38px] sm:h-[44px] items-center gap-2 self-start sm:self-auto rounded-[6px] bg-[#171C22] px-3.5 sm:px-[20px] text-[13px] sm:text-[14px] font-[500] text-white transition hover:bg-black shadow-sm"
           >
             <span>All Tracks</span>
-            <SlidersHorizontal className="h-[15px] w-[15px] stroke-[2]" />
+            <SlidersHorizontal className="h-[14px] w-[14px] sm:h-[15px] sm:w-[15px] stroke-[2]" />
           </button>
 
         </div>
 
         {/* ── SKILL CARDS 3-COLUMN GRID ── */}
-        <div className="mt-[36px] grid grid-cols-1 gap-x-[72px] gap-y-[38px] sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 sm:mt-[36px] grid grid-cols-1 gap-x-6 sm:gap-x-10 lg:gap-x-[72px] gap-y-3.5 sm:gap-y-6 lg:gap-y-[38px] sm:grid-cols-2 lg:grid-cols-3">
           {filteredSkills.map((track, idx) => {
             // Center the 7th item in column 2 on desktop
             const isSeventh = idx === 6;

@@ -76,7 +76,7 @@ export const Navbar: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-[rgba(150,155,158,0.18)] bg-[var(--bg-main)]/92 backdrop-blur-md">
-      <div className="mx-auto flex h-[80px] w-full items-center justify-between px-[5%]">
+      <div className="mx-auto flex h-[68px] sm:h-[80px] w-full items-center justify-between px-4 sm:px-6 lg:px-[5%]">
         
         {/* Left: Official CampusNinja Logo */}
         <CampusNinjaLogo size={42} />
@@ -131,12 +131,12 @@ export const Navbar: React.FC = () => {
         </div>
 
         {/* Right Actions: Login Button + Mobile Toggle (Desktop Menu Button Removed!) */}
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           {userName ? (
             <div className="relative">
               <button
                 onClick={() => setShowProfileMenu((v) => !v)}
-                className="flex h-[46px] items-center gap-2 rounded-full border border-[rgba(38,47,59,0.14)] bg-transparent px-[20px] text-[14px] font-semibold text-[#11161b] transition hover:bg-[rgba(0,0,0,0.03)]"
+                className="flex h-[38px] sm:h-[46px] items-center gap-1.5 sm:gap-2 rounded-full border border-[rgba(38,47,59,0.14)] bg-transparent px-3 sm:px-[20px] text-[13px] sm:text-[14px] font-semibold text-[#11161b] transition hover:bg-[rgba(0,0,0,0.03)]"
               >
                 <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#11161b] text-[10px] text-[#f5f3ee]">
                   {userName.charAt(0).toUpperCase()}
@@ -145,7 +145,7 @@ export const Navbar: React.FC = () => {
               </button>
 
               {showProfileMenu && (
-                <div className="animate-soft-in absolute right-0 mt-2 w-64 rounded-[14px] border border-slate-200 bg-white p-3 shadow-xl z-50">
+                <div className="animate-soft-in absolute right-0 mt-2 w-60 sm:w-64 rounded-[14px] border border-slate-200 bg-white p-3 shadow-xl z-50">
                   <div className="border-b border-slate-100 px-3 pb-3">
                     <p className="text-sm font-bold text-slate-950">{userName}</p>
                     <p className="text-xs text-slate-500 truncate">{userEmail}</p>
@@ -160,9 +160,9 @@ export const Navbar: React.FC = () => {
           ) : (
             <Link
               href="/profile"
-              className="flex h-[46px] items-center justify-center gap-2 rounded-full bg-[#151A20] px-[22px] text-[14px] font-[600] text-[#FFFFFF] transition duration-200 hover:bg-[#000]"
+              className="flex h-[38px] sm:h-[46px] items-center justify-center gap-1.5 sm:gap-2 rounded-full bg-[#151A20] px-4 sm:px-[22px] text-[13px] sm:text-[14px] font-[600] text-[#FFFFFF] transition duration-200 hover:bg-[#000]"
             >
-              <User className="h-4 w-4" />
+              <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>Login</span>
             </Link>
           )}
@@ -170,20 +170,20 @@ export const Navbar: React.FC = () => {
           {/* Menu Drawer Toggle ONLY ON MOBILE (Hidden on desktop) */}
           <button
             onClick={() => setMobileMenuOpen((v) => !v)}
-            className="flex h-[44px] w-[44px] items-center justify-center rounded-full border border-[rgba(38,47,59,0.14)] bg-transparent text-[#11161b] transition hover:bg-[rgba(0,0,0,0.03)] lg:hidden"
+            className="flex h-[38px] w-[38px] sm:h-[44px] sm:w-[44px] items-center justify-center rounded-full border border-[rgba(38,47,59,0.14)] bg-transparent text-[#11161b] transition hover:bg-[rgba(0,0,0,0.03)] lg:hidden"
             aria-label="Toggle Navigation Menu"
           >
-            {mobileMenuOpen ? <X className="h-[18px] w-[18px]" /> : <Menu className="h-[18px] w-[18px]" />}
+            {mobileMenuOpen ? <X className="h-[17px] w-[17px] sm:h-[18px] sm:w-[18px]" /> : <Menu className="h-[17px] w-[17px] sm:h-[18px] sm:w-[18px]" />}
           </button>
         </div>
       </div>
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="border-t border-[rgba(38,47,59,0.10)] bg-[var(--bg-main)] px-6 py-6 lg:hidden animate-soft-in">
-          <div className="relative mb-4">
+        <div className="border-t border-[rgba(38,47,59,0.10)] bg-[var(--bg-main)] px-4 sm:px-6 py-4 sm:py-5 lg:hidden animate-soft-in">
+          <div className="relative mb-3.5">
             <div className="relative">
-              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#78818c]" />
+              <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#78818c]" />
               <input
                 type="text"
                 value={searchQuery}
@@ -193,7 +193,7 @@ export const Navbar: React.FC = () => {
                   setIsSearchOpen(true);
                 }}
                 placeholder="Search subjects, notes, PYQs, videos..."
-                className="h-[48px] w-full rounded-full border border-[rgba(38,47,59,0.13)] bg-[rgba(255,255,255,0.22)] pl-10 pr-4 text-sm font-medium text-slate-900 shadow-sm"
+                className="h-[44px] w-full rounded-full border border-[rgba(38,47,59,0.13)] bg-[rgba(255,255,255,0.4)] pl-10 pr-4 text-xs sm:text-sm font-medium text-slate-900 shadow-sm"
               />
             </div>
             <GlobalSearchDropdown
@@ -206,13 +206,13 @@ export const Navbar: React.FC = () => {
               }}
             />
           </div>
-          <div className="flex flex-col space-y-3 font-semibold text-sm text-[#4e5966]">
+          <div className="flex flex-col space-y-1.5 font-semibold text-sm text-[#4e5966]">
             {navLinks.map((item) => (
-              <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-3 hover:bg-[rgba(0,0,0,0.03)] transition">
+              <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2.5 hover:bg-[rgba(0,0,0,0.03)] transition">
                 {item.label}
               </Link>
             ))}
-            <Link href="/setup" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-3 text-[#11161b] hover:bg-[rgba(0,0,0,0.03)] transition">
+            <Link href="/setup" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-[#11161b] hover:bg-[rgba(0,0,0,0.03)] transition">
               Academic Profile {branchName ? `(${branchName})` : ''}
             </Link>
           </div>
