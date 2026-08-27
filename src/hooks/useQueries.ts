@@ -12,7 +12,9 @@ import {
   getDeliverySettings,
   getUserOrders,
   getCommunityLinks,
-  getSocialLinks
+  getSocialLinks,
+  getSubjectSyllabus,
+  getSubjectDetails
 } from '@/services/supabase';
 
 export const useBanners = (screenName = 'home') => {
@@ -112,3 +114,23 @@ export const useSocialLinks = (platform?: string | null) => {
     queryFn: () => getSocialLinks(platform || null),
   });
 };
+
+export const useSubjectSyllabus = (subjectId?: string | null) => {
+  return useQuery({
+    queryKey: ['subject-syllabus', subjectId],
+    queryFn: () => (subjectId ? getSubjectSyllabus(subjectId) : Promise.resolve(null)),
+    enabled: Boolean(subjectId),
+    staleTime: 1000 * 60 * 5, // 5 minutes cache
+  });
+};
+
+export const useSubjectDetails = (subjectId?: string | null) => {
+  return useQuery({
+    queryKey: ['subject-details', subjectId],
+    queryFn: () => (subjectId ? getSubjectDetails(subjectId) : Promise.resolve(null)),
+    enabled: Boolean(subjectId),
+    staleTime: 1000 * 60 * 10,
+  });
+};
+
+

@@ -7,6 +7,13 @@ import { Card } from '@/components/common/Card';
 
 const adminLinks = [
   {
+    title: 'Syllabus Management',
+    description: 'Manage dynamic units, topics, and upload syllabus PDFs for all subjects.',
+    href: '/admin/syllabus',
+    icon: Sparkles,
+    color: 'bg-purple-50 text-purple-700',
+  },
+  {
     title: 'Orders',
     description: 'View all orders, filter by payment method and status, update order status.',
     href: '/admin/orders',

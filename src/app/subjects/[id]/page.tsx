@@ -13,94 +13,35 @@ import {
   Download, 
   ChevronDown, 
   TrendingUp,
-  ExternalLink
+  ExternalLink,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
-import { useSubjectResources } from '@/hooks/useQueries';
+import { useSubjectResources, useSubjectSyllabus, useSubjectDetails } from '@/hooks/useQueries';
 import { useAcademic } from '@/contexts/AcademicContext';
 import { SubjectBookStackVisual } from '@/components/features/SubjectBookStackVisual';
 
-const SYLLABUS_UNITS = [
-  {
-    unit: 'UNIT 1',
-    title: 'Matrices',
-    topics: [
-      'Definition of matrix and types of matrices',
-      'Elementary row and column operations',
-      'Echelon form and Normal form of a matrix',
-      'Rank of a matrix and nullity',
-      'Linear dependence and independence of vectors',
-    ],
-  },
-  {
-    unit: 'UNIT 2',
-    title: 'Determinants',
-    topics: [
-      'Properties of determinants & algebraic evaluation',
-      'Minors, cofactors, and adjoint matrices',
-      'Inverse of a non-singular matrix',
-      'Cramer’s rule for solving linear systems',
-    ],
-  },
-  {
-    unit: 'UNIT 3',
-    title: 'System of Linear Equations',
-    topics: [
-      'Consistency and inconsistency of linear systems',
-      'Homogeneous and non-homogeneous systems',
-      'Gauss elimination method and Gauss-Jordan method',
-      'Eigenvalues, Eigenvectors, and Cayley-Hamilton Theorem',
-    ],
-  },
-  {
-    unit: 'UNIT 4',
-    title: 'Vector Algebra',
-    topics: [
-      'Vectors in 2D & 3D coordinate geometry',
-      'Scalar (dot) product and Vector (cross) product',
-      'Scalar triple product and Vector triple product',
-      'Geometrical and physical applications of vectors',
-    ],
-  },
-  {
-    unit: 'UNIT 5',
-    title: 'Differential Calculus',
-    topics: [
-      'Successive differentiation and Leibnitz’s Theorem',
-      'Partial derivatives and Total derivative',
-      'Euler’s Theorem on homogeneous functions',
-      'Taylor’s and Maclaurin’s series for two variables',
-    ],
-  },
-  {
-    unit: 'UNIT 6',
-    title: 'Integral Calculus',
-    topics: [
-      'Definite integrals and Reduction formulae',
-      'Double and Triple integrals evaluation',
-      'Change of order of integration',
-      'Applications to areas, volumes, and center of gravity',
-    ],
-  },
-  {
-    unit: 'UNIT 7',
-    title: 'Applications of Calculus',
-    topics: [
-      'Tangents, Normals, and Asymptotes',
-      'Curvature, Radius of curvature, and Evolutes',
-      'Maxima and Minima of functions of two variables',
-      'Lagrange’s method of undetermined multipliers',
-    ],
-  },
-];
+const isUUIDString = (str?: string): boolean => {
+  if (!str) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+};
 
 export default function SubjectDetailPage() {
   const params = useParams();
   const subjectId = Array.isArray(params.id) ? params.id[0] : params.id;
   const { branchName, semesterNum } = useAcademic();
+  
+  const { data: subjectDetails, isLoading: isSubjectLoading } = useSubjectDetails(subjectId || '');
   const { data: dbResources } = useSubjectResources(subjectId || '');
+  const { 
+    data: syllabusData, 
+    isLoading: isSyllabusLoading, 
+    isError: isSyllabusError, 
+    refetch: refetchSyllabus 
+  } = useSubjectSyllabus(subjectId || '');
 
   const [activeTab, setActiveTab] = useState<'syllabus' | 'notes' | 'videos' | 'pyqs' | 'lab'>('syllabus');
-  const [expandedUnits, setExpandedUnits] = useState<number[]>([]);
+  const [expandedUnits, setExpandedUnits] = useState<number[]>([0]); // First unit expanded by default
 
   const toggleUnit = (idx: number) => {
     setExpandedUnits((prev) => 
@@ -116,10 +57,22 @@ export default function SubjectDetailPage() {
     { id: 'lab', label: 'Lab', icon: <FlaskConical className="h-[18px] w-[18px] stroke-[1.8]" /> },
   ];
 
-  // Subject title resolution
-  const subjectTitle = (subjectId === 'applied-mathematics-1' || !subjectId)
-    ? 'Applied Mathematics 1'
-    : decodeURIComponent(subjectId).replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  // Subject title resolution: NEVER output a raw UUID!
+  const resolvedSubjectName = subjectDetails?.name || subjectDetails?.title || 
+    (dbResources && dbResources.length > 0 && dbResources[0]?.subjects?.name ? dbResources[0].subjects.name : null);
+
+  const subjectTitle = resolvedSubjectName || 
+    (subjectId && !isUUIDString(subjectId)
+      ? decodeURIComponent(subjectId).replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+      : (isSubjectLoading ? 'Loading Subject...' : 'Subject Workspace'));
+
+  const currentSemester = subjectDetails?.semester || semesterNum || '1';
+  const currentBranch = subjectDetails?.branch || (branchName ? `${branchName}` : 'Common to All Branches');
+
+  // Dynamic calculations from database syllabus
+  const units = syllabusData?.units || [];
+  const unitsCount = units.length;
+  const totalTopicsCount = units.reduce((acc, u) => acc + (u.topics?.length || 0), 0);
 
   // Filter db resources for other tabs if selected
   const tabResources = (dbResources || []).filter((res) => {
@@ -130,6 +83,14 @@ export default function SubjectDetailPage() {
     if (activeTab === 'lab') return t.includes('lab') || t.includes('manual');
     return true;
   });
+
+  const handleDownloadSyllabus = () => {
+    if (syllabusData?.file_url) {
+      window.open(syllabusData.file_url, '_blank');
+    } else {
+      window.print();
+    }
+  };
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#F3F3F1] text-[#171C22] antialiased">
@@ -153,12 +114,12 @@ export default function SubjectDetailPage() {
       </svg>
 
       {/* ── MAIN CONTENT CONTAINER ── */}
-      <div className="mx-auto w-full px-[24px] lg:px-[54px] xl:px-[80px] pt-[28px] pb-[80px]">
+      <div className="mx-auto w-full px-[24px] lg:px-[54px] xl:px-[80px] pt-[24px] lg:pt-[32px] pb-[80px]">
         
         {/* ── BACK NAVIGATION ── */}
         <Link 
           href="/subjects" 
-          className="inline-flex items-center gap-2 text-[14px] font-[500] text-[#303943] transition-colors hover:text-[#171C22] mb-[34px]"
+          className="inline-flex items-center gap-2 text-[14px] font-[500] text-[#303943] transition-colors hover:text-[#171C22] mb-[28px]"
         >
           <ArrowLeft className="h-4 w-4 stroke-[1.8]" />
           <span>Back to subjects</span>
@@ -172,19 +133,19 @@ export default function SubjectDetailPage() {
             
             {/* Technical Eyebrow */}
             <span className="font-mono-spec text-[10px] font-[500] uppercase tracking-[0.20em] text-[#707983] mb-[12px]">
-              SUBJECT
+              SUBJECT WORKSPACE
             </span>
 
-            {/* Subject Title (Controlled 42px) */}
+            {/* Subject Title */}
             <h1 className="text-[34px] sm:text-[42px] font-[650] leading-[1.05] tracking-[-0.045em] text-[#171C22]">
               {subjectTitle}
             </h1>
 
             {/* Semester & Branch Metadata */}
             <p className="mt-[10px] text-[15px] font-[400] text-[#4F5964]">
-              <span className="font-[550] text-[#242B33]">Semester {semesterNum || '1'}</span>
+              <span className="font-[550] text-[#242B33]">Semester {currentSemester}</span>
               {'  •  '}
-              <span>{branchName ? `${branchName}` : 'Common to All Branches'}</span>
+              <span>{currentBranch}</span>
             </p>
 
             {/* Subject Description */}
@@ -193,7 +154,7 @@ export default function SubjectDetailPage() {
             </p>
           </div>
 
-          {/* Right: Technical Book Stack Visual + Statistics */}
+          {/* Right: Technical Book Stack Visual + Dynamic Statistics */}
           <div className="flex items-center justify-end gap-6 xl:gap-12">
             
             {/* 3D Stack of books with f(x) */}
@@ -201,13 +162,13 @@ export default function SubjectDetailPage() {
               <SubjectBookStackVisual />
             </div>
 
-            {/* Vertical Statistics Column */}
+            {/* Dynamic Vertical Statistics Column */}
             <div className="flex flex-col items-start gap-4 pl-4">
               
-              {/* Stat 1 */}
+              {/* Stat 1: Dynamic Units Count */}
               <div>
                 <span className="text-[25px] font-[650] tracking-[-0.04em] text-[#171C22] leading-none block">
-                  07
+                  {isSyllabusLoading ? '--' : String(unitsCount).padStart(2, '0')}
                 </span>
                 <span className="font-mono-spec text-[9px] font-[500] tracking-[0.10em] uppercase text-[#5E6872] mt-1 block">
                   UNITS
@@ -215,10 +176,10 @@ export default function SubjectDetailPage() {
               </div>
               <div className="h-[1px] w-[90px] bg-[rgba(20,25,32,0.10)]" />
 
-              {/* Stat 2 */}
+              {/* Stat 2: Dynamic Topics Count */}
               <div>
                 <span className="text-[25px] font-[650] tracking-[-0.04em] text-[#171C22] leading-none block">
-                  63
+                  {isSyllabusLoading ? '--' : String(totalTopicsCount).padStart(2, '0')}
                 </span>
                 <span className="font-mono-spec text-[9px] font-[500] tracking-[0.10em] uppercase text-[#5E6872] mt-1 block">
                   TOPICS
@@ -226,10 +187,10 @@ export default function SubjectDetailPage() {
               </div>
               <div className="h-[1px] w-[90px] bg-[rgba(20,25,32,0.10)]" />
 
-              {/* Stat 3 */}
+              {/* Stat 3: Curriculum Coverage */}
               <div>
                 <span className="text-[25px] font-[650] tracking-[-0.04em] text-[#171C22] leading-none block">
-                  100%
+                  {unitsCount > 0 ? '100%' : 'PENDING'}
                 </span>
                 <span className="font-mono-spec text-[9px] font-[500] tracking-[0.10em] uppercase text-[#5E6872] mt-1 block">
                   SYLLABUS COVERED
@@ -257,7 +218,7 @@ export default function SubjectDetailPage() {
                 const isActive = activeTab === item.id;
                 return (
                   <div key={item.id} className="relative">
-                    {/* Technical corner marks around active Syllabus item */}
+                    {/* Technical corner marks around active item */}
                     {isActive && (
                       <>
                         <span className="pointer-events-none absolute -top-[2px] -left-[2px] h-[6px] w-[6px] border-t border-l border-[#171C22]" />
@@ -285,7 +246,7 @@ export default function SubjectDetailPage() {
               })}
             </div>
 
-            {/* Secondary Progress Card */}
+            {/* Secondary Motivational Card */}
             <div className="flex flex-col justify-between rounded-[10px] border border-[rgba(20,25,32,0.10)] bg-[rgba(255,255,255,0.30)] p-[20px] shadow-sm min-h-[145px]">
               <div>
                 <div className="flex h-[32px] w-[32px] items-center justify-center rounded-[6px] bg-white/60 text-[#171C22] mb-3 shadow-xs">
@@ -310,7 +271,7 @@ export default function SubjectDetailPage() {
           </div>
 
           {/* Right Content Panel */}
-          <div className="flex flex-col rounded-[12px] border border-[rgba(20,25,32,0.10)] bg-[rgba(255,255,255,0.42)] p-[28px] shadow-sm">
+          <div className="flex flex-col rounded-[12px] border border-[rgba(20,25,32,0.10)] bg-[rgba(255,255,255,0.42)] p-[28px] shadow-sm min-h-[420px]">
             
             {/* Header: Syllabus Title + Download Button */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-[22px] border-b border-[rgba(20,25,32,0.08)]">
@@ -324,7 +285,7 @@ export default function SubjectDetailPage() {
                   </h2>
                   <p className="text-[13px] text-[#6D7680]">
                     {activeTab === 'syllabus'
-                      ? 'Detailed syllabus and topic breakdown'
+                      ? 'Detailed unit and topic breakdown from database'
                       : `Verified study resources and materials for ${subjectTitle}`}
                   </p>
                 </div>
@@ -332,66 +293,126 @@ export default function SubjectDetailPage() {
 
               {/* Download Syllabus / Resources Action */}
               <button
-                onClick={() => window.print()}
+                onClick={handleDownloadSyllabus}
                 className="inline-flex h-[42px] items-center gap-2 rounded-[8px] border border-[rgba(20,25,32,0.10)] bg-[rgba(255,255,255,0.45)] px-[18px] text-[13px] font-[500] text-[#171C22] transition hover:bg-white shadow-2xs"
               >
                 <Download className="h-[15px] w-[15px] stroke-[1.8]" />
-                <span>Download Syllabus</span>
+                <span>{syllabusData?.file_url ? 'Download Syllabus PDF' : 'Download Syllabus'}</span>
               </button>
             </div>
 
-            {/* Tab: Syllabus Units List */}
+            {/* Tab: Dynamic Syllabus Accordion */}
             {activeTab === 'syllabus' ? (
-              <div className="flex flex-col divide-y divide-[rgba(20,25,32,0.06)]">
-                {SYLLABUS_UNITS.map((unitItem, idx) => {
-                  const isExpanded = expandedUnits.includes(idx);
-                  return (
-                    <div key={unitItem.unit} className="flex flex-col transition-colors">
-                      
-                      {/* Unit Row Bar */}
-                      <div 
-                        onClick={() => toggleUnit(idx)}
-                        className="flex h-[58px] cursor-pointer items-center justify-between px-2 transition-colors hover:bg-white/30 rounded-md"
-                      >
-                        {/* Unit Number & Title */}
-                        <div className="flex items-center gap-[30px] sm:gap-[50px]">
-                          <span className="w-[85px] sm:w-[100px] shrink-0 font-mono-spec text-[11px] font-[500] tracking-[0.04em] text-[#6D7680]">
-                            {unitItem.unit}
-                          </span>
-                          <span className="text-[15px] font-[500] text-[#1E252C]">
-                            {unitItem.title}
-                          </span>
+              <div className="py-2">
+                
+                {/* 1. Loading Skeleton */}
+                {isSyllabusLoading && (
+                  <div className="flex flex-col space-y-4 py-4 animate-pulse">
+                    {[1, 2, 3, 4].map((n) => (
+                      <div key={n} className="flex h-[58px] items-center justify-between px-3 rounded-md bg-black/[0.04]">
+                        <div className="flex items-center gap-8">
+                          <div className="h-4 w-16 bg-black/[0.08] rounded" />
+                          <div className="h-4 w-48 bg-black/[0.08] rounded" />
                         </div>
-
-                        {/* Circular Chevron Button */}
-                        <button
-                          type="button"
-                          aria-label="Toggle Unit"
-                          className={`flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full border border-[rgba(20,25,32,0.12)] bg-transparent text-[#171C22] transition-transform duration-200 ${
-                            isExpanded ? 'rotate-180 bg-white shadow-2xs' : 'hover:bg-white/50'
-                          }`}
-                        >
-                          <ChevronDown className="h-4 w-4 stroke-[1.8]" />
-                        </button>
+                        <div className="h-8 w-8 rounded-full bg-black/[0.08]" />
                       </div>
+                    ))}
+                  </div>
+                )}
 
-                      {/* Expandable Topics Content */}
-                      {isExpanded && (
-                        <div className="pb-4 pt-1 pl-[115px] sm:pl-[150px] pr-4 animate-soft-in">
-                          <ul className="space-y-2 text-[13.5px] text-[#4F5964]">
-                            {unitItem.topics.map((t, topicIdx) => (
-                              <li key={topicIdx} className="flex items-center gap-2">
-                                <span className="h-[4px] w-[4px] rounded-full bg-[#171C22]/40" />
-                                <span>{t}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
+                {/* 2. Error State */}
+                {isSyllabusError && (
+                  <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <AlertCircle className="h-10 w-10 text-amber-600 mb-3" />
+                    <h3 className="text-base font-semibold text-[#1E252C]">Unable to load syllabus</h3>
+                    <p className="text-sm text-[#6D7680] mt-1 max-w-sm">
+                      There was an error connecting to the curriculum database.
+                    </p>
+                    <button
+                      onClick={() => refetchSyllabus()}
+                      className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#171C22] text-sm font-semibold text-white transition hover:bg-black"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      <span>Retry</span>
+                    </button>
+                  </div>
+                )}
 
+                {/* 3. Empty State (No Syllabus / No Units in DB) */}
+                {!isSyllabusLoading && !isSyllabusError && units.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-14 text-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-black/[0.04] text-[#6D7680] mb-3">
+                      <BookOpen className="h-6 w-6 stroke-[1.5]" />
                     </div>
-                  );
-                })}
+                    <h3 className="text-base font-semibold text-[#1E252C]">Syllabus not available yet</h3>
+                    <p className="text-sm text-[#6D7680] mt-1.5 max-w-sm">
+                      Study material and structured units for this subject will be published soon.
+                    </p>
+                  </div>
+                )}
+
+                {/* 4. Dynamic Units & Topics Accordion */}
+                {!isSyllabusLoading && !isSyllabusError && units.length > 0 && (
+                  <div className="flex flex-col divide-y divide-[rgba(20,25,32,0.06)]">
+                    {units.map((unitItem, idx) => {
+                      const isExpanded = expandedUnits.includes(idx);
+                      const unitNumberLabel = `UNIT ${unitItem.unit_number || (idx + 1)}`;
+                      const topics = unitItem.topics || [];
+
+                      return (
+                        <div key={unitItem.id || idx} className="flex flex-col transition-colors">
+                          
+                          {/* Unit Row Bar */}
+                          <button
+                            type="button"
+                            onClick={() => toggleUnit(idx)}
+                            aria-expanded={isExpanded}
+                            className="flex h-[58px] w-full cursor-pointer items-center justify-between px-2 text-left transition-colors hover:bg-white/30 rounded-md"
+                          >
+                            {/* Unit Number & Title */}
+                            <div className="flex items-center gap-[30px] sm:gap-[50px] overflow-hidden pr-4">
+                              <span className="w-[85px] sm:w-[100px] shrink-0 font-mono-spec text-[11px] font-[500] tracking-[0.04em] text-[#6D7680]">
+                                {unitNumberLabel}
+                              </span>
+                              <span className="text-[15px] font-[500] text-[#1E252C] truncate">
+                                {unitItem.title}
+                              </span>
+                            </div>
+
+                            {/* Circular Chevron Indicator */}
+                            <div
+                              className={`flex h-[32px] w-[32px] shrink-0 items-center justify-center rounded-full border border-[rgba(20,25,32,0.12)] bg-transparent text-[#171C22] transition-transform duration-200 ${
+                                isExpanded ? 'rotate-180 bg-white shadow-2xs' : 'hover:bg-white/50'
+                              }`}
+                            >
+                              <ChevronDown className="h-4 w-4 stroke-[1.8]" />
+                            </div>
+                          </button>
+
+                          {/* Expandable Topics Content */}
+                          {isExpanded && (
+                            <div className="pb-4 pt-1 pl-[115px] sm:pl-[150px] pr-4 animate-soft-in">
+                              {topics.length === 0 ? (
+                                <p className="text-xs text-[#8692A2] italic">No topic details added for this unit yet.</p>
+                              ) : (
+                                <ul className="space-y-2 text-[13.5px] text-[#4F5964]">
+                                  {topics.map((topic, topicIdx) => (
+                                    <li key={topic.id || topicIdx} className="flex items-start gap-2.5">
+                                      <span className="h-[4px] w-[4px] rounded-full bg-[#171C22]/40 mt-2 shrink-0" />
+                                      <span>{topic.title}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </div>
+                          )}
+
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
               </div>
             ) : (
               /* Other Tabs: Resource Listing */

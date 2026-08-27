@@ -160,3 +160,75 @@ export interface SearchResults {
   skills: (Skill & { _source: 'skill' })[];
   services: (Product & { _source: 'service' })[];
 }
+
+// ============================================================
+// DYNAMIC SYLLABUS TYPES
+// ============================================================
+
+export interface SyllabusTopic {
+  id: string;
+  unit_id: string;
+  title: string;
+  description?: string | null;
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SyllabusUnit {
+  id: string;
+  syllabus_id: string;
+  subject_id: string;
+  unit_number: number;
+  title: string;
+  description?: string | null;
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
+  topics: SyllabusTopic[];
+}
+
+export interface Syllabus {
+  id: string;
+  subject_id: string;
+  file_url?: string | null;
+  file_name?: string | null;
+  file_path?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SubjectSyllabus {
+  id: string;
+  subject_id: string;
+  file_url?: string | null;
+  file_name?: string | null;
+  file_path?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  units: SyllabusUnit[];
+}
+
+export interface SyllabusTopicPayload {
+  id?: string;
+  title: string;
+  description?: string | null;
+  sort_order?: number;
+}
+
+export interface SyllabusUnitPayload {
+  id?: string;
+  unit_number: number;
+  title: string;
+  description?: string | null;
+  sort_order?: number;
+  topics: SyllabusTopicPayload[];
+}
+
+export interface SyllabusSavePayload {
+  file_url?: string | null;
+  file_name?: string | null;
+  file_path?: string | null;
+  units: SyllabusUnitPayload[];
+}
+
