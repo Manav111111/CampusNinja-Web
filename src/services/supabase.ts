@@ -649,8 +649,69 @@ export const getSubjectSyllabus = async (subjectIdOrSlug: string): Promise<Subje
   const subject = await resolveSubjectRecord(subjectIdOrSlug);
   const targetId = subject?.id || subjectIdOrSlug;
 
+  /**
+   * Helper: given a syllabus row, hydrate its units & topics and return a full SubjectSyllabus.
+   */
+  const hydrateSyllabus = async (sylRow: Record<string, unknown>, resolvedSubjectId: string): Promise<SubjectSyllabus> => {
+    const sylId = sylRow.id as string;
+
+    const { data: unitsData, error: unitsError } = await supabase
+      .from('syllabus_units')
+      .select('*')
+      .eq('syllabus_id', sylId)
+      .order('sort_order', { ascending: true })
+      .order('unit_number', { ascending: true });
+
+    if (unitsError) {
+      console.error('Error fetching syllabus units:', unitsError);
+    }
+
+    const units: SyllabusUnit[] = [];
+    const rawUnits = unitsData || [];
+
+    if (rawUnits.length > 0) {
+      const unitIds = rawUnits.map(u => u.id);
+      const { data: topicsData, error: topicsError } = await supabase
+        .from('syllabus_topics')
+        .select('*')
+        .in('unit_id', unitIds)
+        .order('sort_order', { ascending: true });
+
+      if (topicsError) {
+        console.error('Error fetching syllabus topics:', topicsError);
+      }
+
+      const topicsByUnit: Record<string, SyllabusTopic[]> = {};
+      (topicsData || []).forEach(topic => {
+        if (!topicsByUnit[topic.unit_id]) {
+          topicsByUnit[topic.unit_id] = [];
+        }
+        topicsByUnit[topic.unit_id].push(topic);
+      });
+
+      rawUnits.forEach((u, idx) => {
+        units.push({
+          ...u,
+          unit_number: u.unit_number || (idx + 1),
+          topics: topicsByUnit[u.id] || [],
+        });
+      });
+    }
+
+    return {
+      id: sylId,
+      subject_id: resolvedSubjectId,
+      file_url: sylRow.file_url as string | null,
+      file_name: sylRow.file_name as string | null,
+      file_path: sylRow.file_path as string | null,
+      created_at: sylRow.created_at as string,
+      updated_at: sylRow.updated_at as string,
+      units,
+    };
+  };
+
   try {
-    // 1. Fetch syllabus metadata
+    // 1. Direct match: syllabus for this exact subject_id
     const { data: sylData, error: sylError } = await supabase
       .from('syllabuses')
       .select('*')
@@ -662,60 +723,35 @@ export const getSubjectSyllabus = async (subjectIdOrSlug: string): Promise<Subje
     }
 
     if (sylData) {
-      // 2. Fetch units for this syllabus
-      const { data: unitsData, error: unitsError } = await supabase
-        .from('syllabus_units')
-        .select('*')
-        .eq('syllabus_id', sylData.id)
-        .order('sort_order', { ascending: true })
-        .order('unit_number', { ascending: true });
+      return await hydrateSyllabus(sylData, targetId);
+    }
 
-      if (unitsError) {
-        console.error('Error fetching syllabus units:', unitsError);
-      }
+    // 2. Cross-branch fallback: find any subject with the same or similar name that HAS a syllabus.
+    //    This handles cases where the admin saved a syllabus under one branch's subject
+    //    (e.g. "Communication Skill") and the student views the subject from another branch (e.g. "Communication Skills").
+    if (subject?.name) {
+      const subjectName = subject.name.trim();
+      const baseName = subjectName.replace(/s$/i, '').trim();
+      
+      const { data: siblingSubjects } = await supabase
+        .from('subjects')
+        .select('id')
+        .or(`name.ilike.%${subjectName}%,name.ilike.%${baseName}%`)
+        .neq('id', targetId);
 
-      const units: SyllabusUnit[] = [];
-      const rawUnits = unitsData || [];
-
-      if (rawUnits.length > 0) {
-        const unitIds = rawUnits.map(u => u.id);
-        const { data: topicsData, error: topicsError } = await supabase
-          .from('syllabus_topics')
+      if (siblingSubjects && siblingSubjects.length > 0) {
+        const siblingIds = siblingSubjects.map(s => s.id);
+        const { data: sibSylData } = await supabase
+          .from('syllabuses')
           .select('*')
-          .in('unit_id', unitIds)
-          .order('sort_order', { ascending: true });
+          .in('subject_id', siblingIds)
+          .limit(1)
+          .maybeSingle();
 
-        if (topicsError) {
-          console.error('Error fetching syllabus topics:', topicsError);
+        if (sibSylData) {
+          return await hydrateSyllabus(sibSylData, targetId);
         }
-
-        const topicsByUnit: Record<string, SyllabusTopic[]> = {};
-        (topicsData || []).forEach(topic => {
-          if (!topicsByUnit[topic.unit_id]) {
-            topicsByUnit[topic.unit_id] = [];
-          }
-          topicsByUnit[topic.unit_id].push(topic);
-        });
-
-        rawUnits.forEach((u, idx) => {
-          units.push({
-            ...u,
-            unit_number: u.unit_number || (idx + 1),
-            topics: topicsByUnit[u.id] || [],
-          });
-        });
       }
-
-      return {
-        id: sylData.id,
-        subject_id: targetId,
-        file_url: sylData.file_url,
-        file_name: sylData.file_name,
-        file_path: sylData.file_path,
-        created_at: sylData.created_at,
-        updated_at: sylData.updated_at,
-        units,
-      };
     }
   } catch (err) {
     console.warn('Supabase syllabus query exception:', err);
