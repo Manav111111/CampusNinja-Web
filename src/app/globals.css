@@ -1,29 +1,32 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;650;700;750;800&family=Geist+Mono:wght@400;500;600;650;700&family=Inter:wght@400;500;600;700&display=swap');
 
 @import "tailwindcss";
 
 :root {
-  /* Ink & brand */
-  --ink: #12233F;
-  --ink-700: #1D3B63;
-  --brand: #2A4B8D;
-  --brand-600: #21396A;
-  --brand-50: #EDF1F9;
+  /* Strict Reference Colors */
+  --bg-main: #E9E9E7;
+  --bg-soft: #ECECE9;
+  --bg-light: #F4F4F1;
 
-  /* Accent — used sparingly, drafting-highlighter amber */
-  --amber: #E2A33D;
-  --amber-600: #C98A24;
-  --amber-50: #FBF1DF;
+  --ink: #15191F;
+  --ink-soft: #252B31;
+  --text-main: #252B31;
+  --text-muted: #66707B;
+  --text-faint: #8A929B;
 
-  /* Paper & lines */
-  --paper: #F3F5F0;
-  --paper-raised: #FFFFFF;
-  --line: #DCE2D6;
-  --line-strong: #C3CBBB;
+  --navy: #172338;
+  --navy-deep: #101820;
 
-  /* Text */
-  --muted: #56606B;
-  --muted-2: #8A9299;
+  --line: rgba(150, 155, 158, 0.18);
+  --line-strong: rgba(150, 155, 158, 0.28);
+
+  --technical-line: #AEB5B9;
+  --technical-faint: rgba(174, 181, 185, 0.22);
+
+  --dark-section: #101419;
+  --dark-section-soft: #161B21;
+
+  --green: #35A47A;
 
   --radius: 10px;
 }
@@ -33,17 +36,20 @@ html {
 }
 
 body {
-  background-color: var(--paper);
+  background-color: var(--bg-main);
+  background-image: 
+    radial-gradient(circle at 72% 40%, rgba(255,255,255,0.45), transparent 30%),
+    linear-gradient(135deg, #ECECE9 0%, #E6E6E3 55%, #E9E9E7 100%);
   color: var(--ink);
-  font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Geist', 'Inter', Arial, sans-serif;
 }
 
 .font-display {
-  font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Geist', 'Inter', Arial, sans-serif;
 }
 
 .font-mono-spec {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-family: 'Geist Mono', 'JetBrains Mono', monospace;
   letter-spacing: 0.02em;
 }
 
@@ -183,8 +189,55 @@ body {
   animation: soft-in 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes float-reverse {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(6px);
+  }
+}
+
+.animate-spin-ultra-slow {
+  animation: spin-slow 70s linear infinite;
+}
+
+.animate-spin-reverse-slow {
+  animation: spin-slow 50s linear infinite reverse;
+}
+
+.animate-float-slow {
+  animation: float-slow 4s ease-in-out infinite;
+}
+
+.animate-float-reverse {
+  animation: float-reverse 4.5s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-soft-in {
+  .animate-soft-in,
+  .animate-spin-ultra-slow,
+  .animate-spin-reverse-slow,
+  .animate-float-slow,
+  .animate-float-reverse {
     animation: none;
   }
 

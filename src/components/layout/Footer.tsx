@@ -1,58 +1,248 @@
 import React from 'react';
 import Link from 'next/link';
-import { isReviewMode } from '@/config/reviewMode';
+import { 
+  BookOpen, 
+  GraduationCap, 
+  ShoppingBag, 
+  Info, 
+  HelpCircle, 
+  Users, 
+  Presentation,
+  ArrowRight, 
+  ArrowUpRight 
+} from 'lucide-react';
+import { CampusNinjaLogo } from '@/components/common/CampusNinjaLogo';
+
+const InstagramIcon: React.FC<{ className?: string }> = ({ className = 'h-5 w-5' }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+  </svg>
+);
+
+const LinkedInIcon: React.FC<{ className?: string }> = ({ className = 'h-5 w-5' }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+    <rect width="4" height="12" x="2" y="9" />
+    <circle cx="4" cy="4" r="2" />
+  </svg>
+);
 
 export const Footer: React.FC = () => {
   return (
-    <footer className="mt-auto border-t border-[var(--line)] bg-white/70 py-10 backdrop-blur-xl">
-      <div className="mx-auto grid w-full max-w-[1320px] grid-cols-1 gap-8 px-5 sm:px-8 md:grid-cols-[1.4fr_repeat(3,1fr)]">
-        <div className="space-y-4">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-md border-2 border-[var(--ink)] bg-[var(--ink)] font-mono-spec text-[12px] font-bold text-white">
-              CN
-            </div>
-            <div>
-              <p className="font-display text-sm font-bold text-[var(--ink)]">CampusNinja</p>
-              <p className="font-mono-spec text-[10px] font-semibold text-[var(--muted)]">ENGINEERING STUDY HUB</p>
-            </div>
-          </Link>
-          <p className="max-w-sm text-sm leading-6 text-[var(--muted)]">
-            A focused educational platform for notes, PYQs, syllabus, videos, assignments, and lab manuals.
-          </p>
-        </div>
+    <footer className="relative mt-auto w-full overflow-hidden bg-[#111923] text-[#E5E7EB] antialiased">
+      
+      {/* ── TOP-LEFT ANGULAR CUT DECORATION (SVG OVERLAY / CLIP-PATH) ── */}
+      <div 
+        className="pointer-events-none absolute top-0 left-0 w-full h-[90px] -z-0"
+        style={{
+          background: 'var(--bg-main)',
+          clipPath: 'polygon(0 0, 130px 0, 0 85px)',
+        }}
+      />
 
-        {[
-          ['Study', [['Study Hub', '/subjects'], ['Search Library', '/search'], ['Skill Tracks', '/skills']]],
-          ['Marketplace', [['Services', '/marketplace'], ['Track Orders', '/orders'], ['Bookmarks', '/bookmarks']]],
-          ['Help & Info', [[isReviewMode() ? 'Help & FAQ' : 'Support & Community', '/support'], ['Contact Us', '/contact'], ['About Us', '/about']]],
-          ['Legal & Policies', [['Privacy Policy', '/privacy-policy'], ['Terms & Conditions', '/terms'], ['Refund Policy', '/refund-policy'], ['Shipping Policy', '/shipping-policy']]],
-        ].map(([title, links]) => (
-          <div key={title as string}>
-            <h4 className="mb-3 font-mono-spec text-[10px] font-bold tracking-[0.14em] text-[var(--muted-2)]">{(title as string).toUpperCase()}</h4>
-            <ul className="space-y-2 text-sm font-medium text-[var(--muted)]">
-              {(links as string[][]).map(([label, href]) => (
-                <li key={href}>
-                  <Link href={href} className="transition duration-200 ease-out hover:text-[var(--brand)]">
-                    {label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+      {/* ── BACKGROUND TECHNICAL BLUEPRINT LINES & NODES ── */}
+      <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-40 select-none" viewBox="0 0 1440 700" fill="none">
+        {/* Top-left circuit trace */}
+        <path d="M 90 45 L 230 45 L 300 100 L 460 100" stroke="rgba(255,255,255,0.18)" strokeWidth="1" />
+        <circle cx="460" cy="100" r="2.5" fill="#FFFFFF" opacity="0.6" />
+
+        {/* Lower-right circuit connector */}
+        <path d="M 1200 520 L 1310 420 L 1400 420" stroke="rgba(255,255,255,0.14)" strokeWidth="1" />
+        <circle cx="1200" cy="520" r="2" fill="#FFFFFF" opacity="0.5" />
+        <circle cx="1310" cy="420" r="3.5" stroke="rgba(255,255,255,0.5)" strokeWidth="1" fill="none" />
+      </svg>
+
+      {/* Left Dotted Grid Matrix */}
+      <div className="pointer-events-none absolute left-[40px] top-[240px] grid grid-cols-4 gap-[8px] opacity-20 select-none">
+        {Array.from({ length: 20 }).map((_, i) => (
+          <span key={i} className="h-[2px] w-[2px] rounded-full bg-white" />
         ))}
       </div>
 
-      <div className="mx-auto mt-8 flex w-full max-w-[1320px] flex-col gap-3 border-t border-[var(--line)] px-5 pt-6 text-xs font-medium text-[var(--muted)] sm:flex-row sm:items-center sm:justify-between sm:px-8">
-        <span className="font-mono-spec text-[11px]">© {new Date().getFullYear()} CAMPUSNINJA — ALL RIGHTS RESERVED</span>
-        <div className="flex flex-wrap gap-5">
-          <Link href="/about" className="hover:text-[var(--ink)]">About</Link>
-          <Link href="/contact" className="hover:text-[var(--ink)]">Contact</Link>
-          <Link href="/privacy-policy" className="hover:text-[var(--ink)]">Privacy</Link>
-          <Link href="/terms" className="hover:text-[var(--ink)]">Terms</Link>
-          <Link href="/refund-policy" className="hover:text-[var(--ink)]">Refunds</Link>
-          <Link href="/shipping-policy" className="hover:text-[var(--ink)]">Shipping & Delivery</Link>
-        </div>
+      {/* Right Dotted Grid Matrix */}
+      <div className="pointer-events-none absolute right-[50px] top-[220px] grid grid-cols-5 gap-[8px] opacity-20 select-none">
+        {Array.from({ length: 25 }).map((_, i) => (
+          <span key={i} className="h-[2px] w-[2px] rounded-full bg-white" />
+        ))}
       </div>
+
+      {/* Large Subtle Background Watermark Symbol </> */}
+      <div className="pointer-events-none absolute right-[100px] top-[50px] select-none font-mono-spec text-[200px] font-[700] tracking-[-0.08em] text-white/[0.04]">
+        &lt;/&gt;
+      </div>
+
+      {/* ── MAIN CONTENT CONTAINER ── */}
+      <div className="relative mx-auto w-full max-w-[1240px] px-6 sm:px-12 pt-[120px] pb-[40px]">
+        
+        {/* ── 3-COLUMN LAYOUT ── */}
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1.25fr_0.9fr_1fr] lg:gap-16">
+          
+          {/* ── COLUMN 1: BRAND AREA ── */}
+          <div className="flex flex-col items-start">
+            
+            {/* Logo Row */}
+            <CampusNinjaLogo size={58} variant="light" />
+
+            {/* Engineering Study Hub Label */}
+            <span className="mt-[34px] font-mono-spec text-[14px] font-[500] uppercase tracking-[0.22em] text-[#7A8593]">
+              ENGINEERING STUDY HUB
+            </span>
+
+            {/* Controlled Width Description */}
+            <p className="mt-[28px] max-w-[340px] text-[17px] font-[400] leading-[1.65] text-[#9EA8B4]">
+              Everything you need to learn,<br />
+              build projects, explore skills,<br />
+              and grow your future.
+            </p>
+
+            {/* Thin Decorative Horizontal Line with Terminal Node */}
+            <div className="mt-[32px] flex items-center">
+              <span className="h-[1px] w-[130px] bg-white/18" />
+              <span className="h-[5px] w-[5px] rounded-full border border-white/60 bg-transparent -ml-[1px]" />
+            </div>
+
+            {/* Bottom Brand Tagline */}
+            <div className="mt-[26px] font-mono-spec text-[15px] font-[500] tracking-[0.18em]">
+              <span className="text-[#35A47A] mr-2">//</span>
+              <span className="text-[#9EA8B4]">CODE. LEARN. GROW.</span>
+            </div>
+
+          </div>
+
+          {/* ── COLUMN 2: EXPLORE ── */}
+          <div className="flex flex-col">
+            
+            {/* Heading */}
+            <span className="font-mono-spec text-[15px] font-[600] uppercase tracking-[0.20em] text-[#A2ACB8]">
+              EXPLORE
+            </span>
+            <div className="mt-2.5 h-[2px] w-[42px] bg-white/25" />
+
+            {/* Links List */}
+            <div className="mt-8 flex flex-col space-y-4">
+              {[
+                { label: 'Study Hub', href: '/subjects', icon: <BookOpen className="h-[20px] w-[20px] stroke-[1.6]" /> },
+                { label: 'Skills', href: '/skills', icon: <GraduationCap className="h-[20px] w-[20px] stroke-[1.6]" /> },
+                { label: 'Marketplace', href: '/marketplace', icon: <ShoppingBag className="h-[20px] w-[20px] stroke-[1.6]" /> },
+                { label: 'About', href: '/about', icon: <Info className="h-[20px] w-[20px] stroke-[1.6]" /> },
+                { label: 'Help & FAQ', href: '/support', icon: <HelpCircle className="h-[20px] w-[20px] stroke-[1.6]" /> },
+              ].map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  className="group flex items-center justify-between py-1 text-[17px] font-[500] text-[#E5E7EB] transition-colors hover:text-white"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <span className="text-[#A2ACB8] transition-colors group-hover:text-white">
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-[#7A8593] transition-transform duration-200 group-hover:translate-x-1 group-hover:text-white" />
+                </Link>
+              ))}
+            </div>
+
+          </div>
+
+          {/* ── COLUMN 3: CONNECT ── */}
+          <div className="flex flex-col">
+            
+            {/* Heading */}
+            <span className="font-mono-spec text-[15px] font-[600] uppercase tracking-[0.20em] text-[#A2ACB8]">
+              CONNECT
+            </span>
+            <div className="mt-2.5 h-[2px] w-[42px] bg-white/25" />
+
+            {/* Social / Community Rows */}
+            <div className="mt-8 flex flex-col divide-y divide-white/[0.09]">
+              {[
+                { 
+                  label: 'Google Classroom', 
+                  href: 'https://classroom.google.com', 
+                  isExternal: true, 
+                  icon: <Presentation className="h-[18px] w-[18px] stroke-[1.6]" /> 
+                },
+                { 
+                  label: 'LinkedIn', 
+                  href: 'https://www.linkedin.com/company/campusninja', 
+                  isExternal: true, 
+                  icon: <LinkedInIcon className="h-[18px] w-[18px]" /> 
+                },
+                { 
+                  label: 'Instagram', 
+                  href: 'https://www.instagram.com/campusninja.in', 
+                  isExternal: true, 
+                  icon: <InstagramIcon className="h-[18px] w-[18px]" /> 
+                },
+                { 
+                  label: 'Join Community', 
+                  href: '/support', 
+                  isExternal: false, 
+                  icon: <Users className="h-[18px] w-[18px] stroke-[1.6]" /> 
+                },
+              ].map((row) => {
+                const Content = (
+                  <div className="group flex items-center justify-between py-3 transition-colors hover:bg-white/[0.02] -mx-2 px-2 rounded-lg">
+                    <div className="flex items-center gap-3.5">
+                      <div className="flex h-[46px] w-[46px] items-center justify-center rounded-[10px] border border-white/12 bg-white/[0.02] text-[#E5E7EB] transition-colors group-hover:border-white/25 group-hover:text-white">
+                        {row.icon}
+                      </div>
+                      <span className="text-[17px] font-[500] text-[#E5E7EB] transition-colors group-hover:text-white">
+                        {row.label}
+                      </span>
+                    </div>
+                    <ArrowUpRight className="h-4 w-4 text-[#7A8593] transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-white" />
+                  </div>
+                );
+
+                return row.isExternal ? (
+                  <a key={row.label} href={row.href} target="_blank" rel="noopener noreferrer">
+                    {Content}
+                  </a>
+                ) : (
+                  <Link key={row.label} href={row.href}>
+                    {Content}
+                  </Link>
+                );
+              })}
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* ── BOTTOM LEGAL & STATUS BAR ── */}
+        <div className="mt-[68px] flex flex-col gap-6 border-t border-white/10 pt-[32px] sm:flex-row sm:items-center sm:justify-between text-[15px] text-[#7A8593]">
+          
+          {/* Left: Copyright */}
+          <div>
+            © {new Date().getFullYear()} CampusNinja. All rights reserved.
+          </div>
+
+          {/* Center: Privacy & Terms */}
+          <div className="flex items-center gap-4 text-[#9EA8B4]">
+            <Link href="/privacy-policy" className="transition-colors hover:text-white">
+              Privacy
+            </Link>
+            <span className="text-white/20">|</span>
+            <Link href="/terms" className="transition-colors hover:text-white">
+              Terms
+            </Link>
+          </div>
+
+          {/* Right: Live Learning Status Indicator */}
+          <div className="flex items-center gap-2.5 font-mono-spec text-[13px] tracking-[0.16em] uppercase text-[#9EA8B4]">
+            <span className="h-[7px] w-[7px] rounded-full bg-[#35A47A] shadow-[0_0_8px_#35A47A]" />
+            <span>ALL SYSTEMS LEARNING</span>
+          </div>
+
+        </div>
+
+      </div>
+
     </footer>
   );
 };

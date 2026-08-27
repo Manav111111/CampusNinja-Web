@@ -2,59 +2,64 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight, Bookmark, BookOpen } from 'lucide-react';
-import { Subject } from '@/types';
 
-const partNumber = (id: string, shortName?: string) => {
-  const digits = id.replace(/\D/g, '').padStart(3, '0').slice(-3) || '000';
-  return `${(shortName || 'SUB').toUpperCase().slice(0, 4)}-${digits}`;
-};
+interface SubjectCardProps {
+  number: string;
+  title: string;
+  href: string;
+  className?: string;
+}
 
-export const SubjectCard: React.FC<{ subject: Subject }> = ({ subject }) => {
-  const counts = subject.counts || { total: 0, notes: 0, pyqs: 0, videos: 0 };
-  const total = counts.total || counts.notes + counts.pyqs + counts.videos;
-
+export const SubjectCard: React.FC<SubjectCardProps> = ({
+  number,
+  title,
+  href,
+  className = '',
+}) => {
   return (
-    <article className="spec-corners surface-card group flex min-h-56 flex-col justify-between rounded-lg p-5">
-      <div>
-        <div className="mb-6 flex items-start justify-between gap-3">
-          <div
-            className="flex h-11 w-11 items-center justify-center rounded-md text-white"
-            style={{ backgroundColor: subject.theme_color || 'var(--brand)' }}
-          >
-            <BookOpen className="h-5 w-5 stroke-[1.75]" />
-          </div>
-          <button
-            onClick={(e) => e.preventDefault()}
-            aria-label="Bookmark subject"
-            className="focus-ring flex h-9 w-9 items-center justify-center rounded-md border border-[var(--line)] bg-white text-[var(--muted)] transition duration-200 ease hover:border-[var(--brand)] hover:bg-[var(--brand-50)] hover:text-[var(--brand)]"
-          >
-            <Bookmark className="h-4 w-4" />
-          </button>
-        </div>
+    <Link
+      href={href}
+      className={`group relative block h-[142px] w-full select-none transition-all duration-200 hover:-translate-y-1 ${className}`}
+      style={{
+        background: 'rgba(247, 246, 243, 0.88)',
+        boxShadow: '0 8px 24px rgba(20, 25, 32, 0.03)',
+        clipPath: 'polygon(14px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 14px)',
+      }}
+    >
+      {/* ── TECHNICAL CLIPPED BORDER OVERLAY ── */}
+      <div 
+        className="pointer-events-none absolute inset-0 transition-colors duration-200 group-hover:border-[rgba(23,28,35,0.25)]"
+        style={{
+          border: '1px solid rgba(25, 32, 40, 0.12)',
+          clipPath: 'polygon(14px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 14px)',
+        }}
+      />
 
-        <span className="part-number">{partNumber(subject.id, subject.short_name)} · {total} RES</span>
-        <h3 className="mt-4 font-display line-clamp-2 text-xl font-bold leading-tight tracking-tight text-[var(--ink)]">
-          {subject.title || subject.name}
+      {/* ── 1. TOP-LEFT: SMALL TECHNICAL SUBJECT NUMBER ── */}
+      <div className="absolute top-[18px] left-[24px] flex items-center">
+        <span className="font-mono-spec text-[12px] font-[500] tracking-[0.16em] text-[#76808E]">
+          {number}
+        </span>
+      </div>
+
+      {/* ── TOP-RIGHT: CORNER MARK ── */}
+      <div className="absolute top-[18px] right-[24px]">
+        <span className="block h-[5px] w-[5px] rounded-full bg-[rgba(25,32,40,0.18)]" />
+      </div>
+
+      {/* ── 2. MIDDLE CONTENT AREA: SUBJECT NAME (VERTICALLY CENTERED INSIDE CARD) ── */}
+      <div className="absolute left-[24px] right-[58px] top-[54%] -translate-y-1/2 flex items-center">
+        <h3 className="whitespace-pre-line text-[19px] font-[550] leading-[1.3] tracking-[-0.02em] text-[#1E242C] transition-colors group-hover:text-black">
+          {title}
         </h3>
-        <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--muted)]">
-          {subject.branch ? `${subject.branch}` : 'Department curriculum'}
-          {subject.semester ? ` / Semester ${subject.semester}` : ''}
-        </p>
       </div>
 
-      <div className="mt-6 flex items-center justify-between gap-3 border-t border-[var(--line)] pt-4">
-        <div className="flex gap-3 font-mono-spec text-[10px] font-semibold text-[var(--muted-2)]">
-          <span>{counts.notes} NOTES</span>
-          <span>{counts.pyqs} PYQS</span>
-        </div>
-        <Link
-          href={`/subjects/${subject.id}`}
-          className="flex items-center gap-2 text-sm font-bold text-[var(--ink)] transition duration-200 ease group-hover:text-[var(--brand)]"
-        >
-          Open <ArrowRight className="h-4 w-4 transition duration-200 ease group-hover:translate-x-1" />
-        </Link>
+      {/* ── 3. BOTTOM-RIGHT: MINIMAL TECHNICAL ARROW ── */}
+      <div className="absolute right-[24px] bottom-[18px] flex items-center justify-center">
+        <span className="text-[24px] font-[300] text-[#1E242C] leading-none transition-transform duration-200 group-hover:translate-x-1.5">
+          →
+        </span>
       </div>
-    </article>
+    </Link>
   );
 };

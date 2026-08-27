@@ -1,32 +1,32 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import {
-  ChevronDown,
-  Search,
-  User,
-} from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Search, User, Menu, X } from 'lucide-react';
 import { useAcademic } from '@/contexts/AcademicContext';
 import { getCurrentSession } from '@/services/auth';
 import { supabase } from '@/services/supabase';
-import { isReviewMode } from '@/config/reviewMode';
+import { GlobalSearchDropdown } from '@/components/features/GlobalSearchDropdown';
+import { CampusNinjaLogo } from '@/components/common/CampusNinjaLogo';
 
 export const Navbar: React.FC = () => {
   const router = useRouter();
-  const { branchName, semesterNum } = useAcademic();
+  const pathname = usePathname();
+  const { branchName } = useAcademic();
   const [userName, setUserName] = useState('');
   const [userEmail, setUserEmail] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  const navItems = [
+  // Exact 3 navigation links (Home is accessed via the official CampusNinja logo)
+  const navLinks = [
     { href: '/subjects', label: 'Study Hub' },
-    { href: '/marketplace', label: 'Marketplace' },
     { href: '/skills', label: 'Skills' },
-    { href: '/support', label: isReviewMode() ? 'Help & FAQ' : 'Community' },
-    { href: '/orders', label: 'Premium' },
+    { href: '/about', label: 'About' },
   ];
 
   useEffect(() => {
@@ -36,9 +36,6 @@ export const Navbar: React.FC = () => {
       if (session?.user) {
         setUserName(session.user.user_metadata?.full_name?.split(' ')[0] || '');
         setUserEmail(session.user.email || '');
-      } else {
-        setUserName('');
-        setUserEmail('');
       }
     });
 
@@ -59,108 +56,170 @@ export const Navbar: React.FC = () => {
     };
   }, []);
 
+  // Handle click outside to close search dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-    }
+    // Do not redirect to /search. Open dropdown instead if not already open
+    setIsSearchOpen(true);
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-[var(--line)] bg-white/85 backdrop-blur-xl">
-      <div className="mx-auto flex h-[68px] w-full max-w-[1320px] items-center gap-4 px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex min-w-fit items-center gap-2.5" aria-label="CampusNinja home">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md border-2 border-[var(--ink)] bg-[var(--ink)] font-mono-spec text-[13px] font-bold text-white">
-            CN
-          </div>
-          <span className="font-display text-[17px] font-bold tracking-tight text-[var(--ink)]">
-            CampusNinja
-          </span>
-        </Link>
+    <header className="sticky top-0 z-40 w-full border-b border-[rgba(150,155,158,0.18)] bg-[var(--bg-main)]/92 backdrop-blur-md">
+      <div className="mx-auto flex h-[80px] w-full items-center justify-between px-[5%]">
+        
+        {/* Left: Official CampusNinja Logo */}
+        <CampusNinjaLogo size={42} />
 
-        <nav className="hidden items-center gap-7 px-2 text-[13px] font-semibold text-[var(--muted)] lg:flex">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="relative py-1 transition duration-200 ease hover:text-[var(--ink)] after:absolute after:-bottom-1 after:left-0 after:h-[2px] after:w-0 after:bg-[var(--brand)] after:transition-all after:duration-200 hover:after:w-full"
-            >
-              {item.label}
-            </Link>
-          ))}
+        {/* Center Nav Links (Desktop) */}
+        <nav className="hidden items-center gap-[36px] text-[15px] font-[450] text-[#3E4852] lg:flex ml-8 xl:ml-12">
+          {navLinks.map((item) => {
+            const isActive = pathname === item.href || (item.href === '/subjects' && pathname.startsWith('/subjects')) || (item.href === '/skills' && pathname.startsWith('/skills'));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`relative flex flex-col items-center transition-colors duration-200 hover:text-[#15191F] ${
+                  isActive ? 'font-[600] text-[#15191F]' : ''
+                }`}
+              >
+                <span>{item.label}</span>
+                {isActive && (
+                  <span className="absolute -bottom-[12px] h-[4px] w-[4px] rounded-full bg-[#182029]" />
+                )}
+              </Link>
+            );
+          })}
         </nav>
 
-        <form onSubmit={handleSearchSubmit} className="ml-auto hidden min-w-0 max-w-sm flex-1 md:block">
-          <div className="group relative">
-            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-2)] transition duration-200 ease group-focus-within:text-[var(--brand)]" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search subjects, PYQs, notes…"
-              className="soft-input focus-ring h-10 w-full rounded-md border border-[var(--line)] pl-10 pr-4 text-[13px] font-medium text-[var(--ink)] placeholder:text-[var(--muted-2)] focus:border-[var(--brand)]"
-            />
-          </div>
-        </form>
+        {/* Center-Right: Global Search Bar with Live Floating Dropdown */}
+        <div ref={searchContainerRef} className="relative hidden lg:block ml-auto mr-6">
+          <form onSubmit={handleSearchSubmit}>
+            <div className="group relative w-[420px] xl:w-[460px]">
+              <Search className="absolute left-4 top-1/2 h-[17px] w-[17px] -translate-y-1/2 text-[#7A838B] stroke-[1.8px] transition group-focus-within:text-[#182029]" />
+              <input
+                type="text"
+                value={searchQuery}
+                onFocus={() => setIsSearchOpen(true)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsSearchOpen(true);
+                }}
+                placeholder="Search subjects, notes, PYQs, videos..."
+                className="h-[48px] w-full rounded-full border border-[#D0D3D3] bg-[rgba(255,255,255,0.28)] pl-[46px] pr-[18px] text-[14px] font-[400] text-[#15191F] placeholder:text-[#7A838B] shadow-[0_3px_10px_rgba(0,0,0,0.02)] transition focus:border-[rgba(100,110,120,0.4)] focus:bg-white/80 focus:outline-none"
+              />
+            </div>
+          </form>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <Link
-            href="/setup"
-            className="soft-input focus-ring hidden h-10 items-center gap-2 rounded-md border border-[var(--line)] px-3 text-[12px] font-mono-spec font-semibold text-[var(--muted)] transition duration-200 ease hover:border-[var(--brand)] hover:text-[var(--ink)] md:flex"
-          >
-            <span className="max-w-[170px] truncate">
-              {branchName ? `${branchName.toUpperCase()} · S${semesterNum || '—'}` : 'SET CURRICULUM'}
-            </span>
-            <ChevronDown className="h-3.5 w-3.5 text-[var(--muted-2)]" />
-          </Link>
+          {/* Floating Live Results Dropdown */}
+          <GlobalSearchDropdown
+            query={searchQuery}
+            isOpen={isSearchOpen}
+            onClose={() => setIsSearchOpen(false)}
+            onSelect={() => setIsSearchOpen(false)}
+          />
+        </div>
 
-          <div className="relative">
-            <button
-              onClick={() => setShowProfileMenu((value) => !value)}
-              className="soft-input focus-ring flex h-10 items-center gap-2 rounded-md border border-[var(--line)] px-2 text-[var(--muted)] transition duration-200 ease hover:border-[var(--brand)] hover:text-[var(--ink)]"
-              aria-label="Account menu"
+        {/* Right Actions: Login Button + Mobile Toggle (Desktop Menu Button Removed!) */}
+        <div className="flex shrink-0 items-center gap-3">
+          {userName ? (
+            <div className="relative">
+              <button
+                onClick={() => setShowProfileMenu((v) => !v)}
+                className="flex h-[46px] items-center gap-2 rounded-full border border-[rgba(38,47,59,0.14)] bg-transparent px-[20px] text-[14px] font-semibold text-[#11161b] transition hover:bg-[rgba(0,0,0,0.03)]"
+              >
+                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#11161b] text-[10px] text-[#f5f3ee]">
+                  {userName.charAt(0).toUpperCase()}
+                </div>
+                <span className="hidden max-w-[80px] truncate sm:inline">{userName}</span>
+              </button>
+
+              {showProfileMenu && (
+                <div className="animate-soft-in absolute right-0 mt-2 w-64 rounded-[14px] border border-slate-200 bg-white p-3 shadow-xl z-50">
+                  <div className="border-b border-slate-100 px-3 pb-3">
+                    <p className="text-sm font-bold text-slate-950">{userName}</p>
+                    <p className="text-xs text-slate-500 truncate">{userEmail}</p>
+                  </div>
+                  <div className="py-2 text-sm font-medium text-slate-700">
+                    <Link href="/profile" onClick={() => setShowProfileMenu(false)} className="block rounded-lg px-3 py-2 hover:bg-slate-50">Profile & Settings</Link>
+                    <Link href="/orders" onClick={() => setShowProfileMenu(false)} className="block rounded-lg px-3 py-2 hover:bg-slate-50">Orders & Requests</Link>
+                    <Link href="/bookmarks" onClick={() => setShowProfileMenu(false)} className="block rounded-lg px-3 py-2 hover:bg-slate-50">Saved Resources</Link>
+                    <Link href="/setup" onClick={() => setShowProfileMenu(false)} className="block rounded-lg px-3 py-2 text-blue-600 hover:bg-blue-50">Change Branch & Sem</Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Link
+              href="/profile"
+              className="flex h-[46px] items-center justify-center gap-2 rounded-full bg-[#151A20] px-[22px] text-[14px] font-[600] text-[#FFFFFF] transition duration-200 hover:bg-[#000]"
             >
-              <div className="flex h-6.5 w-6.5 h-[26px] w-[26px] items-center justify-center rounded bg-[var(--ink)] text-[11px] font-bold text-white">
-                {userName ? userName.charAt(0).toUpperCase() : <User className="h-3.5 w-3.5" />}
-              </div>
-              <span className="hidden max-w-[84px] truncate text-[13px] font-medium sm:block">{userName || 'Student'}</span>
-              <ChevronDown className="hidden h-3.5 w-3.5 text-[var(--muted-2)] sm:block" />
-            </button>
+              <User className="h-4 w-4" />
+              <span>Login</span>
+            </Link>
+          )}
 
-            {showProfileMenu && (
-              <div className="glass-panel animate-soft-in absolute right-0 mt-3 w-72 rounded-lg border border-[var(--line)] bg-white p-3 shadow-xl">
-                <div className="border-b border-[var(--line)] px-3 pb-3">
-                  <p className="text-sm font-bold text-[var(--ink)]">{userName ? `Hi, ${userName}` : 'Student profile'}</p>
-                  <p className="mt-0.5 truncate text-xs text-[var(--muted)]">{userEmail || 'Sign in to sync your resources'}</p>
-                </div>
-                <div className="py-2">
-                  {[
-                    { href: '/profile', label: 'Profile and settings' },
-                    { href: '/orders', label: 'Orders and requests' },
-                    { href: '/bookmarks', label: 'Saved materials' },
-                  ].map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setShowProfileMenu(false)}
-                      className="block rounded-md px-3 py-2.5 text-sm font-medium text-[var(--muted)] transition duration-200 ease hover:bg-[var(--brand-50)] hover:text-[var(--ink)]"
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-                <Link
-                  href="/setup"
-                  onClick={() => setShowProfileMenu(false)}
-                  className="primary-button block rounded-md px-3 py-2.5 text-center text-xs font-bold text-white transition duration-200 ease"
-                >
-                  Update academic profile
-                </Link>
-              </div>
-            )}
-          </div>
+          {/* Menu Drawer Toggle ONLY ON MOBILE (Hidden on desktop) */}
+          <button
+            onClick={() => setMobileMenuOpen((v) => !v)}
+            className="flex h-[44px] w-[44px] items-center justify-center rounded-full border border-[rgba(38,47,59,0.14)] bg-transparent text-[#11161b] transition hover:bg-[rgba(0,0,0,0.03)] lg:hidden"
+            aria-label="Toggle Navigation Menu"
+          >
+            {mobileMenuOpen ? <X className="h-[18px] w-[18px]" /> : <Menu className="h-[18px] w-[18px]" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile Drawer Menu */}
+      {mobileMenuOpen && (
+        <div className="border-t border-[rgba(38,47,59,0.10)] bg-[var(--bg-main)] px-6 py-6 lg:hidden animate-soft-in">
+          <div className="relative mb-4">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#78818c]" />
+              <input
+                type="text"
+                value={searchQuery}
+                onFocus={() => setIsSearchOpen(true)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsSearchOpen(true);
+                }}
+                placeholder="Search subjects, notes, PYQs, videos..."
+                className="h-[48px] w-full rounded-full border border-[rgba(38,47,59,0.13)] bg-[rgba(255,255,255,0.22)] pl-10 pr-4 text-sm font-medium text-slate-900 shadow-sm"
+              />
+            </div>
+            <GlobalSearchDropdown
+              query={searchQuery}
+              isOpen={isSearchOpen}
+              onClose={() => setIsSearchOpen(false)}
+              onSelect={() => {
+                setIsSearchOpen(false);
+                setMobileMenuOpen(false);
+              }}
+            />
+          </div>
+          <div className="flex flex-col space-y-3 font-semibold text-sm text-[#4e5966]">
+            {navLinks.map((item) => (
+              <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-3 hover:bg-[rgba(0,0,0,0.03)] transition">
+                {item.label}
+              </Link>
+            ))}
+            <Link href="/setup" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-3 text-[#11161b] hover:bg-[rgba(0,0,0,0.03)] transition">
+              Academic Profile {branchName ? `(${branchName})` : ''}
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

@@ -16,6 +16,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
+import { CampusNinjaLogo } from '@/components/common/CampusNinjaLogo';
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -29,7 +30,6 @@ const navGroups = [
       { name: 'Dashboard', href: '/', icon: Home },
       { name: 'Study Hub', href: '/subjects', icon: BookOpen },
       { name: 'Skills Hub', href: '/skills', icon: Zap },
-      { name: 'Search', href: '/search', icon: Search },
     ],
   },
   {
@@ -69,15 +69,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       >
         <div className="glass-panel flex h-full flex-col overflow-hidden rounded-none border border-[var(--line)] lg:rounded-xl">
           <div className="flex h-16 items-center justify-between border-b border-[var(--line)] px-5 lg:hidden">
-            <Link href="/" onClick={onClose} className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-md border-2 border-[var(--ink)] bg-[var(--ink)] font-mono-spec text-[12px] font-bold text-white">
-                CN
-              </div>
-              <div>
-                <p className="font-display text-sm font-bold text-[var(--ink)]">CampusNinja</p>
-                <p className="font-mono-spec text-[10px] font-semibold text-[var(--brand)]">STUDY OS</p>
-              </div>
-            </Link>
+            <div onClick={onClose}>
+              <CampusNinjaLogo size={36} />
+            </div>
             <button
               onClick={onClose}
               className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--muted)] transition hover:bg-[var(--brand-50)] hover:text-[var(--ink)]"
