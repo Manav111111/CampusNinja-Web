@@ -76,10 +76,15 @@ export const Navbar: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-[rgba(150,155,158,0.18)] bg-[var(--bg-main)]/92 backdrop-blur-md">
-      <div className="mx-auto flex h-[68px] sm:h-[80px] w-full items-center justify-between px-4 sm:px-6 lg:px-[5%]">
+      <div className="mx-auto flex h-[60px] sm:h-[80px] w-full items-center justify-between px-3.5 sm:px-6 lg:px-[5%]">
         
         {/* Left: Official CampusNinja Logo */}
-        <CampusNinjaLogo size={42} />
+        <div className="sm:hidden">
+          <CampusNinjaLogo size={36} />
+        </div>
+        <div className="hidden sm:block">
+          <CampusNinjaLogo size={42} />
+        </div>
 
         {/* Center Nav Links (Desktop) */}
         <nav className="hidden items-center gap-[36px] text-[15px] font-[450] text-[#3E4852] lg:flex ml-8 xl:ml-12">
@@ -136,9 +141,9 @@ export const Navbar: React.FC = () => {
             <div className="relative">
               <button
                 onClick={() => setShowProfileMenu((v) => !v)}
-                className="flex h-[38px] sm:h-[46px] items-center gap-1.5 sm:gap-2 rounded-full border border-[rgba(38,47,59,0.14)] bg-transparent px-3 sm:px-[20px] text-[13px] sm:text-[14px] font-semibold text-[#11161b] transition hover:bg-[rgba(0,0,0,0.03)]"
+                className="flex h-[36px] sm:h-[46px] items-center gap-1.5 sm:gap-2 rounded-full border border-[rgba(38,47,59,0.14)] bg-transparent px-2.5 sm:px-[20px] text-[12.5px] sm:text-[14px] font-semibold text-[#11161b] transition hover:bg-[rgba(0,0,0,0.03)]"
               >
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#11161b] text-[10px] text-[#f5f3ee]">
+                <div className="flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-[#11161b] text-[9px] sm:text-[10px] text-[#f5f3ee]">
                   {userName.charAt(0).toUpperCase()}
                 </div>
                 <span className="hidden max-w-[80px] truncate sm:inline">{userName}</span>
@@ -160,7 +165,7 @@ export const Navbar: React.FC = () => {
           ) : (
             <Link
               href="/profile"
-              className="flex h-[38px] sm:h-[46px] items-center justify-center gap-1.5 sm:gap-2 rounded-full bg-[#151A20] px-4 sm:px-[22px] text-[13px] sm:text-[14px] font-[600] text-[#FFFFFF] transition duration-200 hover:bg-[#000]"
+              className="flex h-[36px] sm:h-[46px] items-center justify-center gap-1.5 sm:gap-2 rounded-full bg-[#151A20] px-3.5 sm:px-[22px] text-[12.5px] sm:text-[14px] font-[600] text-[#FFFFFF] transition duration-200 hover:bg-[#000]"
             >
               <User className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>Login</span>
@@ -170,10 +175,10 @@ export const Navbar: React.FC = () => {
           {/* Menu Drawer Toggle ONLY ON MOBILE (Hidden on desktop) */}
           <button
             onClick={() => setMobileMenuOpen((v) => !v)}
-            className="flex h-[38px] w-[38px] sm:h-[44px] sm:w-[44px] items-center justify-center rounded-full border border-[rgba(38,47,59,0.14)] bg-transparent text-[#11161b] transition hover:bg-[rgba(0,0,0,0.03)] lg:hidden"
+            className="flex h-[36px] w-[36px] sm:h-[44px] sm:w-[44px] items-center justify-center rounded-full border border-[rgba(38,47,59,0.14)] bg-transparent text-[#11161b] transition hover:bg-[rgba(0,0,0,0.03)] lg:hidden"
             aria-label="Toggle Navigation Menu"
           >
-            {mobileMenuOpen ? <X className="h-[17px] w-[17px] sm:h-[18px] sm:w-[18px]" /> : <Menu className="h-[17px] w-[17px] sm:h-[18px] sm:w-[18px]" />}
+            {mobileMenuOpen ? <X className="h-[16px] w-[16px] sm:h-[18px] sm:w-[18px]" /> : <Menu className="h-[16px] w-[16px] sm:h-[18px] sm:w-[18px]" />}
           </button>
         </div>
       </div>
