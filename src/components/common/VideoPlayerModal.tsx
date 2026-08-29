@@ -12,12 +12,66 @@ interface VideoPlayerModalProps {
   description?: string;
 }
 
-const extractYouTubeId = (url?: string): string | null => {
-  if (!url) return null;
-  const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|&v=)([^#&?]*).*/;
-  const match = url.match(regExp);
-  return (match && match[2].length === 11) ? match[2] : null;
-};
+export function getYouTubeEmbedInfo(url?: string): {
+  embedUrl: string | null;
+  directUrl: string;
+  isPlaylist: boolean;
+} {
+  if (!url) return { embedUrl: null, directUrl: '', isPlaylist: false };
+
+  const trimmed = url.trim();
+
+  // 1. Check for playlist URL (?list=... or &list=...)
+  const playlistMatch = trimmed.match(/[?&]list=([a-zA-Z0-9_-]+)/i);
+  const playlistId = playlistMatch ? playlistMatch[1] : null;
+
+  // 2. Check for video ID
+  let videoId: string | null = null;
+  const videoMatch = trimmed.match(
+    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/|live\/))([a-zA-Z0-9_-]{11})/i
+  );
+  if (videoMatch && videoMatch[1]) {
+    videoId = videoMatch[1];
+  } else if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+    videoId = trimmed;
+  }
+
+  // 3. Construct Embed URL
+  if (videoId && playlistId) {
+    return {
+      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?list=${playlistId}&autoplay=1&rel=0&modestbranding=1`,
+      directUrl: `https://www.youtube.com/watch?v=${videoId}&list=${playlistId}`,
+      isPlaylist: true,
+    };
+  } else if (playlistId) {
+    return {
+      embedUrl: `https://www.youtube-nocookie.com/embed/videoseries?list=${playlistId}&autoplay=1&rel=0&modestbranding=1`,
+      directUrl: `https://www.youtube.com/playlist?list=${playlistId}`,
+      isPlaylist: true,
+    };
+  } else if (videoId) {
+    return {
+      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`,
+      directUrl: `https://www.youtube.com/watch?v=${videoId}`,
+      isPlaylist: false,
+    };
+  }
+
+  // Generic iframe fallback if it's already an embed link
+  if (trimmed.includes('youtube.com/embed/')) {
+    return {
+      embedUrl: trimmed,
+      directUrl: trimmed,
+      isPlaylist: false,
+    };
+  }
+
+  return {
+    embedUrl: null,
+    directUrl: trimmed,
+    isPlaylist: false,
+  };
+}
 
 export function VideoPlayerModal({
   isOpen,
@@ -29,14 +83,7 @@ export function VideoPlayerModal({
 }: VideoPlayerModalProps) {
   if (!isOpen || !videoUrl) return null;
 
-  const videoId = extractYouTubeId(videoUrl);
-  const directYouTubeUrl = videoId 
-    ? `https://www.youtube.com/watch?v=${videoId}` 
-    : videoUrl;
-
-  const embedUrl = videoId
-    ? `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`
-    : null;
+  const { embedUrl, directUrl, isPlaylist } = getYouTubeEmbedInfo(videoUrl);
 
   return (
     <div 
@@ -54,9 +101,16 @@ export function VideoPlayerModal({
               <PlaySquare className="h-4 w-4 stroke-[2]" />
             </div>
             <div className="overflow-hidden">
-              <h3 className="text-[14.5px] font-[700] text-[#0F172A] truncate">
-                {title}
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-[14.5px] font-[700] text-[#0F172A] truncate">
+                  {title}
+                </h3>
+                {isPlaylist && (
+                  <span className="px-2 py-0.5 rounded text-[10.5px] font-[700] bg-red-100 text-red-700">
+                    Playlist
+                  </span>
+                )}
+              </div>
               {subjectTitle && (
                 <p className="text-[11.5px] text-[#64748B] truncate">
                   {subjectTitle}
@@ -68,7 +122,7 @@ export function VideoPlayerModal({
           {/* Actions */}
           <div className="flex items-center gap-2 shrink-0">
             <a
-              href={directYouTubeUrl}
+              href={directUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-600 text-[12.5px] font-[600] text-white hover:bg-red-700 transition-colors shadow-2xs"
@@ -79,7 +133,7 @@ export function VideoPlayerModal({
 
             <button
               onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0F172A] transition-colors"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#64748B] hover:bg-[#F1F5F9] hover:text-[#0F172A] transition-colors cursor-pointer"
               title="Close video"
             >
               <X className="h-4 w-4 stroke-[2]" />
@@ -94,7 +148,7 @@ export function VideoPlayerModal({
               src={embedUrl}
               title={title}
               className="w-full h-full border-none"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
             />
           ) : (
@@ -105,7 +159,7 @@ export function VideoPlayerModal({
                 This video link cannot be embedded directly. You can watch it on YouTube.
               </p>
               <a
-                href={directYouTubeUrl}
+                href={directUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 text-xs font-semibold text-white hover:bg-red-700 transition"
