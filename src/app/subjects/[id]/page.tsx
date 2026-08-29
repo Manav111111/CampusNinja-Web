@@ -20,6 +20,8 @@ import {
 import { useSubjectResources, useSubjectSyllabus, useSubjectDetails } from '@/hooks/useQueries';
 import { useAcademic } from '@/contexts/AcademicContext';
 import { SubjectBookStackVisual } from '@/components/features/SubjectBookStackVisual';
+import { PDFViewerModal } from '@/components/common/PDFViewerModal';
+import { VideoPlayerModal } from '@/components/common/VideoPlayerModal';
 
 const isUUIDString = (str?: string): boolean => {
   if (!str) return false;
@@ -42,6 +44,19 @@ export default function SubjectDetailPage() {
 
   const [activeTab, setActiveTab] = useState<'syllabus' | 'notes' | 'videos' | 'pyqs' | 'lab'>('syllabus');
   const [expandedUnits, setExpandedUnits] = useState<number[]>([0]); // First unit expanded by default
+
+  const [pdfModal, setPdfModal] = useState<{ isOpen: boolean; title: string; fileUrl: string }>({
+    isOpen: false,
+    title: '',
+    fileUrl: '',
+  });
+
+  const [videoModal, setVideoModal] = useState<{ isOpen: boolean; title: string; videoUrl: string; description?: string }>({
+    isOpen: false,
+    title: '',
+    videoUrl: '',
+    description: '',
+  });
 
   const toggleUnit = (idx: number) => {
     setExpandedUnits((prev) => 
@@ -292,13 +307,29 @@ export default function SubjectDetailPage() {
               </div>
 
               {/* Download Syllabus / Resources Action */}
-              <button
-                onClick={handleDownloadSyllabus}
-                className="inline-flex h-[42px] items-center gap-2 rounded-[8px] border border-[rgba(20,25,32,0.10)] bg-[rgba(255,255,255,0.45)] px-[18px] text-[13px] font-[500] text-[#171C22] transition hover:bg-white shadow-2xs"
-              >
-                <Download className="h-[15px] w-[15px] stroke-[1.8]" />
-                <span>{syllabusData?.file_url ? 'Download Syllabus PDF' : 'Download Syllabus'}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                {syllabusData?.file_url && (
+                  <button
+                    onClick={() => setPdfModal({
+                      isOpen: true,
+                      title: 'Official Syllabus Document',
+                      fileUrl: syllabusData.file_url || '',
+                    })}
+                    className="inline-flex h-[40px] items-center gap-2 rounded-[8px] border border-[#FF6B00]/30 bg-[#FFF7ED] px-[16px] text-[13px] font-[600] text-[#FF6B00] transition hover:bg-[#FFEDD5] shadow-2xs cursor-pointer"
+                  >
+                    <BookOpen className="h-[15px] w-[15px] stroke-[2]" />
+                    <span>Read Syllabus PDF</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={handleDownloadSyllabus}
+                  className="inline-flex h-[40px] items-center gap-2 rounded-[8px] border border-[rgba(20,25,32,0.10)] bg-[rgba(255,255,255,0.45)] px-[16px] text-[13px] font-[500] text-[#171C22] transition hover:bg-white shadow-2xs cursor-pointer"
+                >
+                  <Download className="h-[15px] w-[15px] stroke-[1.8]" />
+                  <span>Download</span>
+                </button>
+              </div>
             </div>
 
             {/* Tab: Dynamic Syllabus Accordion */}
@@ -432,24 +463,92 @@ export default function SubjectDetailPage() {
                     {tabResources.map((res) => {
                       const linkUrl = res.file_url || res.drive_url || res.youtube_url || res.external_url || '#';
                       const resourceUnit = (res as { unit?: string | number }).unit;
+                      const isVideo = (res.type || '').toLowerCase().includes('video') || Boolean(res.youtube_url);
+
                       return (
-                        <div key={res.id} className="flex items-center justify-between p-4 rounded-lg border border-[rgba(20,25,32,0.08)] bg-white/50">
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-5 w-5 text-[#171C22]" />
+                        <div 
+                          key={res.id} 
+                          className="flex items-center justify-between p-4 rounded-xl border border-[rgba(20,25,32,0.08)] bg-white/60 hover:bg-white transition-all shadow-2xs"
+                        >
+                          <div 
+                            className="flex items-center gap-3.5 flex-1 cursor-pointer"
+                            onClick={() => {
+                              if (isVideo) {
+                                setVideoModal({
+                                  isOpen: true,
+                                  title: res.title,
+                                  videoUrl: linkUrl,
+                                  description: res.description,
+                                });
+                              } else {
+                                setPdfModal({
+                                  isOpen: true,
+                                  title: res.title,
+                                  fileUrl: linkUrl,
+                                });
+                              }
+                            }}
+                          >
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                              isVideo ? 'bg-red-50 text-red-600' : 'bg-[#FFF7ED] text-[#FF6B00]'
+                            }`}>
+                              {isVideo ? (
+                                <PlaySquare className="h-5 w-5 stroke-[1.8]" />
+                              ) : (
+                                <FileText className="h-5 w-5 stroke-[1.8]" />
+                              )}
+                            </div>
                             <div>
-                              <p className="text-sm font-semibold text-[#171C22]">{res.title}</p>
-                              <p className="text-xs text-[#6D7680]">{resourceUnit ? `Unit ${resourceUnit}` : (res.description || 'Core Material')}</p>
+                              <p className="text-[14.5px] font-[650] text-[#171C22] hover:text-[#FF6B00] transition-colors">
+                                {res.title}
+                              </p>
+                              <p className="text-xs text-[#6D7680] mt-0.5">
+                                {resourceUnit ? `Unit ${resourceUnit}` : (res.description || (isVideo ? 'YouTube Lecture' : 'PDF Study Material'))}
+                              </p>
                             </div>
                           </div>
-                          <a 
-                            href={linkUrl} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#171C22] text-xs font-semibold text-white transition hover:bg-black"
-                          >
-                            <span>Open</span>
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
+
+                          <div className="flex items-center gap-2 shrink-0 ml-4">
+                            <button 
+                              onClick={() => {
+                                if (isVideo) {
+                                  setVideoModal({
+                                    isOpen: true,
+                                    title: res.title,
+                                    videoUrl: linkUrl,
+                                    description: res.description,
+                                  });
+                                } else {
+                                  setPdfModal({
+                                    isOpen: true,
+                                    title: res.title,
+                                    fileUrl: linkUrl,
+                                  });
+                                }
+                              }}
+                              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                                isVideo 
+                                  ? 'bg-red-600 text-white hover:bg-red-700' 
+                                  : 'bg-[#171C22] text-white hover:bg-black'
+                              }`}
+                            >
+                              <span>{isVideo ? 'Watch' : 'Read'}</span>
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </button>
+
+                            {!isVideo && (
+                              <a
+                                href={linkUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download
+                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-[rgba(20,25,32,0.10)] bg-white/70 text-[#475569] hover:bg-white hover:text-[#171C22] transition shadow-2xs"
+                                title="Download PDF"
+                              >
+                                <Download className="h-3.5 w-3.5 stroke-[1.8]" />
+                              </a>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -483,6 +582,24 @@ export default function SubjectDetailPage() {
         </div>
 
       </div>
+
+      {/* ── MODALS: IN-BROWSER PDF VIEWER & YOUTUBE PLAYER ── */}
+      <PDFViewerModal
+        isOpen={pdfModal.isOpen}
+        onClose={() => setPdfModal({ isOpen: false, title: '', fileUrl: '' })}
+        title={pdfModal.title}
+        fileUrl={pdfModal.fileUrl}
+        subjectTitle={subjectTitle}
+      />
+
+      <VideoPlayerModal
+        isOpen={videoModal.isOpen}
+        onClose={() => setVideoModal({ isOpen: false, title: '', videoUrl: '' })}
+        title={videoModal.title}
+        videoUrl={videoModal.videoUrl}
+        subjectTitle={subjectTitle}
+        description={videoModal.description}
+      />
 
     </div>
   );
