@@ -39,19 +39,19 @@ export function getYouTubeEmbedInfo(url?: string): {
   // 3. Construct Embed URL
   if (videoId && playlistId) {
     return {
-      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?list=${playlistId}&autoplay=1&rel=0&modestbranding=1`,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?list=${playlistId}&enablejsapi=1&origin=https://campusninja.in&widget_referrer=https://campusninja.in&autoplay=1&rel=0&modestbranding=1`,
       directUrl: `https://www.youtube.com/watch?v=${videoId}&list=${playlistId}`,
       isPlaylist: true,
     };
   } else if (playlistId) {
     return {
-      embedUrl: `https://www.youtube-nocookie.com/embed/videoseries?list=${playlistId}&autoplay=1&rel=0&modestbranding=1`,
+      embedUrl: `https://www.youtube-nocookie.com/embed/videoseries?list=${playlistId}&enablejsapi=1&origin=https://campusninja.in&widget_referrer=https://campusninja.in&autoplay=1&rel=0&modestbranding=1`,
       directUrl: `https://www.youtube.com/playlist?list=${playlistId}`,
       isPlaylist: true,
     };
   } else if (videoId) {
     return {
-      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&origin=https://campusninja.in&widget_referrer=https://campusninja.in&autoplay=1&rel=0&modestbranding=1`,
       directUrl: `https://www.youtube.com/watch?v=${videoId}`,
       isPlaylist: false,
     };
