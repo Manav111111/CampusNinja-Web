@@ -464,6 +464,12 @@ export default function SubjectDetailPage() {
                       const linkUrl = res.file_url || res.drive_url || res.youtube_url || res.external_url || '#';
                       const resourceUnit = (res as { unit?: string | number }).unit;
                       const isVideo = (res.type || '').toLowerCase().includes('video') || Boolean(res.youtube_url);
+                      const isGoogleDriveUrl = (() => {
+                        try {
+                          const h = new URL(linkUrl).hostname;
+                          return h === 'drive.google.com' || h === 'docs.google.com';
+                        } catch { return false; }
+                      })();
 
                       return (
                         <div 
@@ -473,6 +479,10 @@ export default function SubjectDetailPage() {
                           <div 
                             className="flex items-center gap-3.5 flex-1 cursor-pointer"
                             onClick={() => {
+                              if (isGoogleDriveUrl) {
+                                window.open(linkUrl, '_blank', 'noopener,noreferrer');
+                                return;
+                              }
                               if (isVideo) {
                                 setVideoModal({
                                   isOpen: true,
@@ -511,6 +521,10 @@ export default function SubjectDetailPage() {
                           <div className="flex items-center gap-2 shrink-0 ml-4">
                             <button 
                               onClick={() => {
+                                if (isGoogleDriveUrl) {
+                                  window.open(linkUrl, '_blank', 'noopener,noreferrer');
+                                  return;
+                                }
                                 if (isVideo) {
                                   setVideoModal({
                                     isOpen: true,
