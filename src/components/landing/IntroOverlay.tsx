@@ -1,29 +1,29 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 
 /**
- * Cinematic intro overlay — ninja entrance, sword slash, screen split,
- * ember/spark burst, then the real CampusNinja logo reveal.
+ * Cinematic intro overlay — real 3D ninja (Three.js/WebGL) walk-in, diagonal
+ * katana slash, screen split synchronised to the blade crossing frame centre,
+ * ember burst, then the real CampusNinja logo reveal.
  *
- * ASSET LIMITATION (honest note): the repository ships no 3D ninja model
- * (public/ contains only the brand logo and hero-bg.mp4) and this task
- * forbids unnecessary dependencies, so no three.js / model-viewer stack was
- * introduced. The "complete ninja" here is a hand-built full-body 2.5D SVG
- * figure (head + mask + headband, torso, belt, both arms, both legs, katana)
- * animated with framer-motion — a deliberate stand-in, NOT a full 3D model.
- * Swap `NinjaFigure` for a real <model-viewer>/R3F scene once a licensed
- * 3D model asset is available.
+ * Asset: CC0 "NINJA CHARACTER" by styloo (`public/models/ninja/`, CREDITS.md).
+ * Walk + slash are procedurally authored on the rig (stylised, no mocap claims).
  *
- * Accessibility / safety:
- * - Always skippable (Skip button, Escape key, click-through) and
- *   auto-dismisses; it never blocks Login / Sign Up (hero stays mounted).
- * - The parent must not render this at all when prefers-reduced-motion is set.
+ * Safety / accessibility:
+ * - Always skippable (Skip button, Escape), auto-dismisses via sequence end
+ *   plus an absolute failsafe; Login / Sign Up stay mounted behind it.
+ * - Reduced-motion users never render this (parent gate).
+ * - WebGL/load failure or `?no3d=1` → honest degraded cinematic (slash beam +
+ *   split + logo, no ninja) instead of a stuck loader. Never waits indefinitely.
  */
 
-type Phase = 'enter' | 'slash' | 'split' | 'reveal';
+const NinjaScene = dynamic(() => import('./NinjaScene'), { ssr: false });
+
+type Phase = 'loading' | 'cinema' | 'split' | 'reveal' | 'fallback-slash' | 'fallback-split' | 'fallback-reveal';
 
 interface IntroOverlayProps {
   onComplete: () => void;
@@ -59,172 +59,98 @@ function buildShards(count: number): Shard[] {
   });
 }
 
-/**
- * Full-body stylised ninja figure (side stance, katana drawn).
- * Complete character — head/mask/headband, torso, belt, arms, legs, sword —
- * so this is never just a "sword-only CSS effect".
- */
-const NinjaFigure: React.FC = () => (
-  <svg
-    viewBox="0 0 340 340"
-    role="img"
-    aria-label="Ninja character drawing a katana"
-    className="h-auto w-full drop-shadow-[0_0_35px_rgba(255,122,26,0.35)]"
-  >
-    <defs>
-      <linearGradient id="cn-blade" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stopColor="#FFF7ED" />
-        <stop offset="55%" stopColor="#FDBA74" />
-        <stop offset="100%" stopColor="#FF7A1A" />
-      </linearGradient>
-      <linearGradient id="cn-gi" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#23272F" />
-        <stop offset="100%" stopColor="#101216" />
-      </linearGradient>
-      <filter id="cn-glow" x="-60%" y="-60%" width="220%" height="220%">
-        <feGaussianBlur stdDeviation="3.2" result="blur" />
-        <feMerge>
-          <feMergeNode in="blur" />
-          <feMergeNode in="SourceGraphic" />
-        </feMerge>
-      </filter>
-    </defs>
-
-    {/* ground shadow */}
-    <ellipse cx="170" cy="308" rx="105" ry="12" fill="#000" opacity="0.55" />
-    <ellipse cx="170" cy="308" rx="70" ry="7" fill="#FF7A1A" opacity="0.18" />
-
-    {/* speed lines */}
-    <g stroke="#FF7A1A" strokeLinecap="round" opacity="0.5">
-      <line x1="18" y1="120" x2="86" y2="120" strokeWidth="3" />
-      <line x1="8" y1="160" x2="66" y2="160" strokeWidth="2" />
-      <line x1="24" y1="200" x2="92" y2="200" strokeWidth="3" />
-    </g>
-
-    {/* back leg */}
-    <path
-      d="M158 218 L118 262 L96 300 L116 306 L142 266 L172 226 Z"
-      fill="url(#cn-gi)"
-      stroke="#343945"
-      strokeWidth="2"
-      strokeLinejoin="round"
-    />
-    {/* front leg (lunge) */}
-    <path
-      d="M178 220 L216 252 L256 288 L268 276 L228 240 L192 214 Z"
-      fill="url(#cn-gi)"
-      stroke="#343945"
-      strokeWidth="2"
-      strokeLinejoin="round"
-    />
-    {/* feet */}
-    <path d="M88 298 L120 298 L120 308 L86 308 Z" fill="#0B0C0F" stroke="#343945" strokeWidth="1.5" />
-    <path d="M252 284 L282 268 L288 278 L258 294 Z" fill="#0B0C0F" stroke="#343945" strokeWidth="1.5" />
-
-    {/* torso (gi) */}
-    <path
-      d="M148 128 L196 128 L204 190 L208 222 L152 222 L146 188 Z"
-      fill="url(#cn-gi)"
-      stroke="#343945"
-      strokeWidth="2"
-      strokeLinejoin="round"
-    />
-    {/* gi collar cross */}
-    <path d="M148 128 L180 162 L172 168 L146 136 Z" fill="#0B0C0F" opacity="0.85" />
-    <path d="M196 128 L170 156 L178 162 L198 136 Z" fill="#1B1E24" />
-    {/* belt */}
-    <rect x="148" y="206" width="62" height="14" rx="4" fill="#FF7A1A" />
-    <rect x="148" y="206" width="62" height="5" rx="2.5" fill="#FFB066" opacity="0.8" />
-    {/* belt knot + tails */}
-    <rect x="196" y="208" width="10" height="10" rx="2" fill="#C2570B" />
-    <path d="M202 218 L216 250 L208 252 L196 220 Z" fill="#FF7A1A" opacity="0.9" />
-
-    {/* back arm */}
-    <path
-      d="M152 140 L120 168 L108 196 L122 202 L136 176 L160 152 Z"
-      fill="url(#cn-gi)"
-      stroke="#343945"
-      strokeWidth="2"
-      strokeLinejoin="round"
-    />
-    <circle cx="115" cy="199" r="9" fill="#0B0C0F" stroke="#343945" strokeWidth="2" />
-
-    {/* headband tails (flowing) */}
-    <path d="M148 84 C118 78 96 84 74 100 C96 100 116 100 140 98 Z" fill="#FF7A1A" />
-    <path d="M148 92 C124 94 106 102 92 116 C110 112 130 106 146 102 Z" fill="#C2570B" />
-
-    {/* head */}
-    <circle cx="176" cy="92" r="36" fill="url(#cn-gi)" stroke="#343945" strokeWidth="2" />
-    {/* mask band */}
-    <path
-      d="M140 84 L212 84 L208 108 L144 108 Z"
-      fill="#0B0C0F"
-      stroke="#343945"
-      strokeWidth="1.5"
-    />
-    {/* headband */}
-    <rect x="140" y="66" width="72" height="12" rx="6" fill="#FF7A1A" />
-    <rect x="140" y="66" width="72" height="4" rx="2" fill="#FFB066" opacity="0.85" />
-    {/* glowing eyes */}
-    <g filter="url(#cn-glow)">
-      <ellipse cx="162" cy="96" rx="8" ry="5" fill="#FF7A1A" />
-      <ellipse cx="190" cy="96" rx="8" ry="5" fill="#FF7A1A" />
-    </g>
-    <ellipse cx="162" cy="96" rx="3.4" ry="2.4" fill="#FFF7ED" />
-    <ellipse cx="190" cy="96" rx="3.4" ry="2.4" fill="#FFF7ED" />
-
-    {/* front arm extended, gripping katana */}
-    <path
-      d="M196 140 L232 152 L258 158 L256 172 L230 166 L194 154 Z"
-      fill="url(#cn-gi)"
-      stroke="#343945"
-      strokeWidth="2"
-      strokeLinejoin="round"
-    />
-    <circle cx="259" cy="165" r="10" fill="#0B0C0F" stroke="#FF7A1A" strokeWidth="2.5" />
-
-    {/* katana: guard + long blade */}
-    <rect x="264" y="157" width="8" height="18" rx="2" fill="#C2570B" transform="rotate(8 268 166)" />
-    <g transform="rotate(8 272 166)">
-      <rect x="272" y="161" width="58" height="7" rx="3.5" fill="url(#cn-blade)" filter="url(#cn-glow)" />
-      <polygon points="330,161 342,164.5 330,168" fill="#FFF7ED" />
-    </g>
-  </svg>
-);
+const LOAD_TIMEOUT_MS = 8000;
 
 export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
-  const [phase, setPhase] = useState<Phase>('enter');
+  const [phase, setPhase] = useState<Phase>('loading');
   const [visible, setVisible] = useState(true);
+  const [degraded, setDegraded] = useState(false);
   const shards = useMemo(() => buildShards(26), []);
+  const freezeAt = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const v = new URLSearchParams(window.location.search).get('freeze');
+    const n = v == null ? NaN : Number(v);
+    return Number.isFinite(n) ? n : null;
+  }, []);
+  const forceFallback = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).get('no3d') === '1';
+  }, []);
 
   const finish = useCallback(() => {
     setVisible(false);
-    // Allow the fade-out to play before unmounting.
     window.setTimeout(onComplete, 450);
   }, [onComplete]);
 
+  const enterFallback = useCallback(() => {
+    setDegraded(true);
+    setPhase((p) => (p === 'reveal' || p === 'fallback-reveal' ? p : 'fallback-slash'));
+  }, []);
+
+  // Fallback choreography (no 3D): slash beam → split → logo → finish.
   useEffect(() => {
+    if (!degraded) return;
     const timers: number[] = [];
-    timers.push(window.setTimeout(() => setPhase('slash'), 1050));
-    timers.push(window.setTimeout(() => setPhase('split'), 1650));
-    timers.push(window.setTimeout(() => setPhase('reveal'), 2350));
-    timers.push(window.setTimeout(finish, 3900));
-    // Absolute safety net — the intro can never trap the user.
-    const failsafe = window.setTimeout(finish, 7000);
+    if (phase === 'fallback-slash') {
+      timers.push(window.setTimeout(() => setPhase('fallback-split'), 900));
+    } else if (phase === 'fallback-split') {
+      timers.push(window.setTimeout(() => setPhase('fallback-reveal'), 900));
+    } else if (phase === 'fallback-reveal') {
+      timers.push(window.setTimeout(finish, 1500));
+    }
+    return () => timers.forEach((t) => window.clearTimeout(t));
+  }, [degraded, phase, finish]);
+
+  // Absolute failsafe + Escape + load timeout → degraded path (never stuck).
+  useEffect(() => {
+    const failsafe = window.setTimeout(finish, 11000);
+    const loadTimer = window.setTimeout(() => {
+      setPhase((p) => {
+        if (p === 'loading') enterFallback();
+        return p;
+      });
+    }, LOAD_TIMEOUT_MS);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') finish();
     };
     window.addEventListener('keydown', onKey);
     return () => {
-      timers.forEach((t) => window.clearTimeout(t));
       window.clearTimeout(failsafe);
+      window.clearTimeout(loadTimer);
       window.removeEventListener('keydown', onKey);
     };
-  }, [finish]);
+  }, [finish, enterFallback]);
 
-  const slashing = phase === 'slash' || phase === 'split' || phase === 'reveal';
-  const split = phase === 'split' || phase === 'reveal';
-  const revealed = phase === 'reveal';
+  useEffect(() => {
+    if (forceFallback) enterFallback();
+  }, [forceFallback, enterFallback]);
+
+  const handleSceneError = useCallback(() => {
+    enterFallback();
+  }, [enterFallback]);
+
+  const handleSlashImpact = useCallback(() => {
+    // Split fires on the exact blade-crossing frame; the logo reveal fires on
+    // the scene's sequence-end event (never on an independent timer, so DOM
+    // and WebGL can never desynchronise on slow GPUs).
+    setPhase('split');
+  }, []);
+
+  const handleSequenceEnd = useCallback(() => {
+    setPhase((p) => (p === 'cinema' || p === 'split' ? 'reveal' : p));
+  }, []);
+
+  // Reveal hold → finish.
+  useEffect(() => {
+    if (phase !== 'reveal') return;
+    const timer = window.setTimeout(finish, 1500);
+    return () => window.clearTimeout(timer);
+  }, [phase, finish]);
+
+  const showSplit = phase === 'split' || phase === 'reveal';
+  const showFallbackSplit = phase === 'fallback-split' || phase === 'fallback-reveal';
+  const showLogo = phase === 'reveal' || phase === 'fallback-reveal';
+  const splitting = showSplit || showFallbackSplit;
 
   return (
     <AnimatePresence>
@@ -236,78 +162,107 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
           className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[#060607]"
           exit={{ opacity: 0, transition: { duration: 0.45, ease: 'easeInOut' } }}
         >
-          {/* Screen-split panels (separate during slash, revealing the logo) */}
-          <motion.div
-            aria-hidden="true"
-            className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-b from-[#101014] via-[#0A0A0D] to-[#060607]"
-            animate={split ? { x: '-102%' } : { x: '0%' }}
-            transition={{ duration: 0.8, ease: [0.7, 0, 0.2, 1] }}
-          />
-          <motion.div
-            aria-hidden="true"
-            className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-b from-[#141013] via-[#0D0A0B] to-[#060607]"
-            animate={split ? { x: '102%' } : { x: '0%' }}
-            transition={{ duration: 0.8, ease: [0.7, 0, 0.2, 1] }}
-          />
-
-          {/* Ember ambience */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0"
-            style={{
-              background:
-                'radial-gradient(ellipse 60% 45% at 50% 62%, rgba(255,122,26,0.16), transparent 70%)',
-            }}
-          />
-
-          {/* Ninja entrance */}
-          {!revealed && (
+          {/* ── 3D ninja stage (dissolves as the screen splits) ── */}
+          {!degraded && (
             <motion.div
-              className="relative z-10 w-[min(72vw,340px)]"
-              initial={{ x: '-120vw', opacity: 0, skewX: -8 }}
-              animate={
-                phase === 'enter'
-                  ? { x: '-8vw', opacity: 1, skewX: 0 }
-                  : { x: '6vw', opacity: slashing ? 0 : 1, skewX: 0 }
-              }
-              transition={
-                phase === 'enter'
-                  ? { duration: 0.9, ease: [0.16, 1, 0.3, 1] }
-                  : { duration: 0.45, ease: 'easeIn' }
-              }
+              className="absolute inset-0"
+              initial={{ opacity: 1 }}
+              // The 3D stage smoulders through the split, then dissolves for the logo.
+              animate={{ opacity: showLogo && freezeAt == null ? 0 : 1 }}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
             >
-              <NinjaFigure />
+              <NinjaScene
+                freezeAt={freezeAt}
+                onReady={() => setPhase((p) => (p === 'loading' ? 'cinema' : p))}
+                onSlashImpact={handleSlashImpact}
+                onSequenceEnd={handleSequenceEnd}
+                onError={handleSceneError}
+              />
             </motion.div>
           )}
 
-          {/* Sword-slash beam + flash */}
-          {slashing && !revealed && (
+          {/* Loading veil (lifts the moment the scene is ready) */}
+          {phase === 'loading' && !degraded && (
+            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-[#060607]">
+              <span className="overflow-hidden rounded-2xl shadow-[0_0_50px_rgba(255,122,26,0.35)]">
+                <Image
+                  src="/brand/campusninja-logo.png"
+                  alt=""
+                  width={56}
+                  height={56}
+                  priority
+                  className="h-14 w-14 animate-pulse object-contain"
+                />
+              </span>
+              <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-zinc-500">
+                Summoning the ninja…
+              </p>
+            </div>
+          )}
+
+          {/* ── Diagonal screen-split panels (seam matches the slash diagonal:
+              blade travels screen top-left → bottom-right).
+              Transparent until the cut so the 3D stage stays visible. ── */}
+          <motion.div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-[#101014] via-[#0A0A0D] to-[#060607]"
+            style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }}
+            initial={{ opacity: 0 }}
+            animate={splitting ? { x: '14%', y: '-14%', opacity: 0.88 } : { x: '0%', y: '0%', opacity: 0 }}
+            transition={{ duration: 0.8, ease: [0.7, 0, 0.2, 1] }}
+          />
+          <motion.div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-[#141013] via-[#0D0A0B] to-[#060607]"
+            style={{ clipPath: 'polygon(0 0, 100% 100%, 0 100%)' }}
+            initial={{ opacity: 0 }}
+            animate={splitting ? { x: '-14%', y: '14%', opacity: 0.88 } : { x: '0%', y: '0%', opacity: 0 }}
+            transition={{ duration: 0.8, ease: [0.7, 0, 0.2, 1] }}
+          />
+
+          {/* Seam flash along the cut */}
+          {splitting && (
+            <motion.div
+              aria-hidden="true"
+              className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[5px] w-[160%]"
+              style={{
+                background: 'linear-gradient(90deg, transparent, #FFF7ED 30%, #FF7A1A 55%, #FF3D00 75%, transparent)',
+                boxShadow: '0 0 40px 8px rgba(255,122,26,0.8), 0 0 120px 30px rgba(255,61,0,0.4)',
+                transform: 'translate(-50%, -50%) rotate(45deg)',
+              }}
+              initial={{ opacity: 0, scaleX: 0.4 }}
+              animate={{ opacity: [0, 1, 0.85, 0], scaleX: 1 }}
+              transition={{ duration: 1.1, ease: 'easeOut' }}
+            />
+          )}
+
+          {/* Fallback slash beam (degraded path only — the 3D blade owns the real slash) */}
+          {degraded && phase === 'fallback-slash' && (
             <>
               <motion.div
                 aria-hidden="true"
-                className="absolute left-[-10%] top-1/2 z-20 h-[6px] w-[120%] origin-left"
+                className="absolute left-1/2 top-1/2 z-20 h-[6px] w-[150%]"
                 style={{
-                  background:
-                    'linear-gradient(90deg, transparent, #FFF7ED 30%, #FF7A1A 55%, #FF3D00 75%, transparent)',
-                  transform: 'rotate(-18deg)',
+                  background: 'linear-gradient(90deg, transparent, #FFF7ED 30%, #FF7A1A 55%, #FF3D00 75%, transparent)',
                   boxShadow: '0 0 40px 8px rgba(255,122,26,0.8), 0 0 120px 30px rgba(255,61,0,0.4)',
+                  transform: 'translate(-50%, -50%) rotate(45deg)',
                 }}
                 initial={{ scaleX: 0, opacity: 0 }}
                 animate={{ scaleX: 1, opacity: [0, 1, 1, 0] }}
-                transition={{ duration: 0.55, ease: 'easeOut' }}
+                transition={{ duration: 0.7, ease: 'easeOut' }}
               />
               <motion.div
                 aria-hidden="true"
                 className="absolute inset-0 z-20 bg-[#FFF3E6]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: [0, 0.9, 0] }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
               />
             </>
           )}
 
           {/* Ember / shard burst */}
-          {slashing && (
+          {splitting && (
             <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-20">
               {shards.map((s, i) => (
                 <motion.span
@@ -319,14 +274,7 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
                     width: s.size,
                     height: s.round ? s.size : s.size * 2.6,
                     borderRadius: s.round ? 999 : 1,
-                    background:
-                      i % 4 === 0
-                        ? '#FFF7ED'
-                        : i % 4 === 1
-                          ? '#FFB066'
-                          : i % 4 === 2
-                            ? '#FF7A1A'
-                            : '#FF3D00',
+                    background: i % 4 === 0 ? '#FFF7ED' : i % 4 === 1 ? '#FFB066' : i % 4 === 2 ? '#FF7A1A' : '#FF3D00',
                     boxShadow: '0 0 10px 2px rgba(255,122,26,0.7)',
                   }}
                   initial={{ opacity: 0, x: 0, y: 0, rotate: 0, scale: 0.4 }}
@@ -338,7 +286,7 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
           )}
 
           {/* Logo reveal — the actual brand mark */}
-          {revealed && (
+          {showLogo && (
             <motion.div
               className="relative z-30 flex flex-col items-center px-6 text-center"
               initial={{ opacity: 0, scale: 0.82 }}
@@ -349,8 +297,7 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
                 aria-hidden="true"
                 className="absolute left-1/2 top-1/2 -z-10 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full"
                 style={{
-                  background:
-                    'radial-gradient(circle, rgba(255,122,26,0.35) 0%, rgba(255,61,0,0.12) 45%, transparent 70%)',
+                  background: 'radial-gradient(circle, rgba(255,122,26,0.35) 0%, rgba(255,61,0,0.12) 45%, transparent 70%)',
                 }}
               />
               <motion.div
@@ -377,7 +324,7 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
             </motion.div>
           )}
 
-          {/* Caption + skip (always available, never blocks auth actions behind it for long) */}
+          {/* Caption + skip (always available) */}
           <div className="absolute inset-x-0 top-0 z-40 flex items-start justify-between p-4 sm:p-6">
             <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500 sm:text-xs">
               Cinematic intro — skippable

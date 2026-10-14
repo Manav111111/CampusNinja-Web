@@ -20,7 +20,13 @@ export default function HomePage() {
       setShowIntro(false);
       return;
     }
+    // QA override: ?cinematic=1 forces the intro (screenshot/verification).
     try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('cinematic') === '1') {
+        setShowIntro(true);
+        return;
+      }
       if (!window.sessionStorage.getItem(INTRO_SEEN_KEY)) {
         setShowIntro(true);
       }
