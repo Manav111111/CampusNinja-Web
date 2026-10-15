@@ -84,7 +84,6 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
   const [phase, setPhase] = useState<Phase>('cinema');
   const [visible, setVisible] = useState(true);
   const [failed, setFailed] = useState(false);
-  const [muted, setMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const finishedRef = useRef(false);
   const shards = useMemo(() => buildShards(26), []);
@@ -111,21 +110,24 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
   // (Sound starts muted via autoplay; unmuteFromPill + first-gesture
   // listeners above enable it without any welcome card.)
 
-  // Automatic start: muted autoplay is permitted by browsers. Sound is
-  // enabled on the first user gesture via the sound pill (no welcome card).
+  // Automatic start: attempts unmuted playback; if rejected by browser policy,
+  // gracefully falls back to muted autoplay without showing any intrusive controls.
   useEffect(() => {
     if (failed || forceFallback) return;
     const video = videoRef.current;
     if (!video) return;
-    video.muted = true;
-    setMuted(true);
+    video.muted = false;
+    video.volume = 1;
     video.play().catch(() => {
-      // Autoplay blocked entirely — the sound pill becomes tap-to-play.
-      setMuted(true);
+      // Browser blocked unmuted autoplay — continue automatically muted.
+      video.muted = true;
+      video.play().catch(() => {
+        setFailed(true);
+      });
     });
   }, [failed, forceFallback]);
 
-  // First gesture anywhere on the overlay enables sound (browser-compliant).
+  // First user gesture anywhere on the window enables sound seamlessly.
   useEffect(() => {
     const enableSound = () => {
       const video = videoRef.current;
@@ -133,38 +135,16 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
       if (video.muted) {
         video.muted = false;
         video.volume = 1;
-        setMuted(false);
       }
     };
     const onPointer = () => enableSound();
     const onKey = () => enableSound();
-    window.addEventListener('pointerdown', onPointer);
-    window.addEventListener('keydown', onKey);
+    window.addEventListener('pointerdown', onPointer, { passive: true });
+    window.addEventListener('keydown', onKey, { passive: true });
     return () => {
       window.removeEventListener('pointerdown', onPointer);
       window.removeEventListener('keydown', onKey);
     };
-  }, []);
-
-  const unmuteFromPill = useCallback(() => {
-    const video = videoRef.current;
-    if (!video) {
-      setFailed(true);
-      return;
-    }
-    // If autoplay was blocked outright, start playback here (real gesture).
-    if (video.paused) {
-      video.muted = false;
-      video.volume = 1;
-      video.play().then(
-        () => setMuted(false),
-        () => setFailed(true),
-      );
-      return;
-    }
-    video.muted = false;
-    video.volume = 1;
-    setMuted(false);
   }, []);
 
   // Fallback choreography (video unavailable or ?nocine=1): split → logo → finish.
@@ -222,7 +202,6 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
   const showFallbackSplit = phase === 'fallback-split' || phase === 'fallback-reveal';
   const showLogo = phase === 'reveal' || phase === 'fallback-reveal';
   const splitting = showSplit || showFallbackSplit;
-  const showSoundPill = muted && (phase === 'cinema' || phase === 'split') && !failed && !forceFallback;
 
   return (
     <AnimatePresence>
@@ -257,21 +236,6 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
                 onError={handleVideoError}
               />
             </motion.div>
-          )}
-
-          {/* ── Unobtrusive sound pill (autoplay starts muted; first tap
-              enables sound — no welcome card, no blocked experience) ── */}
-          {showSoundPill && (
-            <div className="absolute inset-x-0 bottom-0 z-40 flex justify-center p-4 sm:p-6">
-              <button
-                type="button"
-                onClick={unmuteFromPill}
-                aria-label="Play the cinematic intro with sound"
-                className="rounded-full border border-[#FF7A1A]/50 bg-black/60 px-5 py-2.5 text-xs font-semibold text-zinc-100 backdrop-blur transition hover:border-[#FF7A1A] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A1A] sm:text-sm"
-              >
-                Tap for sound
-              </button>
-            </div>
           )}
 
           {/* ── Diagonal screen-split panels (seam matches the slash diagonal:
