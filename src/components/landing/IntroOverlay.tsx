@@ -39,8 +39,8 @@ import Image from 'next/image';
 
 const VIDEO_SRC = '/videos/cn-intro.mp4';
 const POSTER_SRC = '/videos/cn-intro-poster.jpg';
-/** Blade-crossing frame 154 @ 24fps, verified against rendered frames. */
-const IMPACT_T = 154 / 24;
+/** Blade-crossing and flash frame 102 @ 24fps (4.25s), verified against rendered frames. */
+const IMPACT_T = 102 / 24;
 const FAILSAFE_MS = 20000;
 const REVEAL_HOLD_MS = 1400;
 
