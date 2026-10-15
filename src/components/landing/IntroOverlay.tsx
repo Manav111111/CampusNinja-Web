@@ -7,27 +7,22 @@ import Image from 'next/image';
 /**
  * Cinematic intro overlay — pre-rendered 3D samurai cinematic (Blender/Eevee).
  *
- * Source: `Documents/CampusNinja-Cine/grab3d/cine_full.blend` (kept outside the
- * repo). Character: Grab3D "Samurai" (CC0 1.0, no attribution required;
+ * Source: `Documents/CampusNinja-Cine/grab3d/cine_v5_final.blend` (kept outside
+ * the repo). Character: Grab3D "Samurai" (CC0 1.0, no attribution required;
  * bundled LICENSE.txt in the external workspace). Katana: Poly Haven
- * "Antique Katana" (CC0). Scabbard modelled in Blender. All sound is
- * procedurally synthesised original audio embedded in the video file — zero
- * third-party samples, zero licenses, zero royalties.
+ * "Antique Katana" (CC0). Scabbard modelled in Blender.
  *
  * Timeline (video clock, verified against rendered frames):
- * - 0.0s  establishing push-in over the burning fortress courtyard
- * - ~2.0s  samurai walk-in (brisk mocap cadence, constant-speed root travel)
- * - ~4.8s  hand grips hilt, katana draw along the scabbard axis
- * - ~6.1s  diagonal slash, screen top-left → bottom-right
- * - 6.417s IMPACT (frame 154): fullscreen flash; DOM screen-split fires here
- * - 7.42s video ends over settling embers; logo reveal follows
+ * - 0.0s  samurai approach over the burning fortress courtyard
+ * - ~3.3s  controlled draw along the scabbard axis
+ * - 4.25s  diagonal impact; DOM screen-split fires on the matching video frame
+ * - 5.33s video ends; the logo reveal follows
  *
- * Sound is part of the video file, so it can never desynchronise. The intro
- * starts automatically (muted autoplay, which browsers permit). A small
- * "Tap for sound" pill unmutes on first user gesture; if autoplay itself is
- * blocked, the same pill starts playback with sound. There is no welcome
- * card and no gate blocking the experience. Reduced-motion users never
- * render this (parent gate in `src/app/page.tsx`).
+ * The mixed cinematic audio is embedded in the video file, so the visual and
+ * sound cues share one clock. The intro starts automatically; browsers that
+ * block unmuted autoplay fall back to muted playback and unmute on the first
+ * user gesture. There is no welcome card or sound-toggle control.
+ * Reduced-motion users never render this (parent gate in `src/app/page.tsx`).
  *
  * Safety / accessibility:
  * - Always skippable (Skip button, Escape, gate-level skip link).
@@ -106,9 +101,6 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
     setVisible(false);
     window.setTimeout(onComplete, 450);
   }, [onComplete]);
-
-  // (Sound starts muted via autoplay; unmuteFromPill + first-gesture
-  // listeners above enable it without any welcome card.)
 
   // Automatic start: attempts unmuted playback; if rejected by browser policy,
   // gracefully falls back to muted autoplay without showing any intrusive controls.
@@ -240,7 +232,7 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
 
           {/* ── Diagonal screen-split panels (seam matches the slash diagonal:
               blade travels screen top-left → bottom-right, verified at the
-              7.083s impact frame).
+              4.25s impact frame).
               Transparent until the cut so the video stage stays visible.
               Panels tip in 3D perspective as they part, and each carries its
               own cut-edge glow that fades out — the split reads as fractured
