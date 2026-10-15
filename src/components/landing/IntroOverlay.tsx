@@ -16,16 +16,18 @@ import Image from 'next/image';
  *
  * Timeline (video clock, verified against rendered frames):
  * - 0.0s  establishing push-in over the burning fortress courtyard
- * - ~2.0s  samurai walk-in (mocap walk action, constant-speed root travel)
- * - ~5.4s  hand grips hilt, katana draw along the scabbard axis
- * - ~6.7s  diagonal slash, screen top-left → bottom-right
- * - 7.083s IMPACT (frame 170): fullscreen flash; DOM screen-split fires here
- * - 8.0s  video ends over settling embers; logo reveal follows
+ * - ~2.0s  samurai walk-in (brisk mocap cadence, constant-speed root travel)
+ * - ~4.8s  hand grips hilt, katana draw along the scabbard axis
+ * - ~6.1s  diagonal slash, screen top-left → bottom-right
+ * - 6.417s IMPACT (frame 154): fullscreen flash; DOM screen-split fires here
+ * - 7.42s video ends over settling embers; logo reveal follows
  *
- * Sound is part of the video file, so it can never desynchronise. Browsers
- * forbid autoplay with sound, so playback starts from an explicit
- * "Enter Campus Ninja" gesture. Reduced-motion users never render this
- * (parent gate in `src/app/page.tsx`).
+ * Sound is part of the video file, so it can never desynchronise. The intro
+ * starts automatically (muted autoplay, which browsers permit). A small
+ * "Tap for sound" pill unmutes on first user gesture; if autoplay itself is
+ * blocked, the same pill starts playback with sound. There is no welcome
+ * card and no gate blocking the experience. Reduced-motion users never
+ * render this (parent gate in `src/app/page.tsx`).
  *
  * Safety / accessibility:
  * - Always skippable (Skip button, Escape, gate-level skip link).
@@ -37,12 +39,12 @@ import Image from 'next/image';
 
 const VIDEO_SRC = '/videos/cn-intro.mp4';
 const POSTER_SRC = '/videos/cn-intro-poster.jpg';
-/** Blade-crossing frame 170 @ 24fps, verified against rendered frames. */
-const IMPACT_T = 170 / 24;
+/** Blade-crossing frame 154 @ 24fps, verified against rendered frames. */
+const IMPACT_T = 154 / 24;
 const FAILSAFE_MS = 20000;
 const REVEAL_HOLD_MS = 1400;
 
-type Phase = 'gate' | 'cinema' | 'split' | 'reveal' | 'fallback-split' | 'fallback-reveal';
+type Phase = 'cinema' | 'split' | 'reveal' | 'fallback-split' | 'fallback-reveal';
 
 interface IntroOverlayProps {
   onComplete: () => void;
@@ -79,9 +81,10 @@ function buildShards(count: number): Shard[] {
 }
 
 export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
-  const [phase, setPhase] = useState<Phase>('gate');
+  const [phase, setPhase] = useState<Phase>('cinema');
   const [visible, setVisible] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [muted, setMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const finishedRef = useRef(false);
   const shards = useMemo(() => buildShards(26), []);
@@ -105,27 +108,70 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
     window.setTimeout(onComplete, 450);
   }, [onComplete]);
 
-  const startPlayback = useCallback(() => {
+  // (Sound starts muted via autoplay; unmuteFromPill + first-gesture
+  // listeners above enable it without any welcome card.)
+
+  // Automatic start: muted autoplay is permitted by browsers. Sound is
+  // enabled on the first user gesture via the sound pill (no welcome card).
+  useEffect(() => {
+    if (failed || forceFallback) return;
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = true;
+    setMuted(true);
+    video.play().catch(() => {
+      // Autoplay blocked entirely — the sound pill becomes tap-to-play.
+      setMuted(true);
+    });
+  }, [failed, forceFallback]);
+
+  // First gesture anywhere on the overlay enables sound (browser-compliant).
+  useEffect(() => {
+    const enableSound = () => {
+      const video = videoRef.current;
+      if (!video || video.paused) return;
+      if (video.muted) {
+        video.muted = false;
+        video.volume = 1;
+        setMuted(false);
+      }
+    };
+    const onPointer = () => enableSound();
+    const onKey = () => enableSound();
+    window.addEventListener('pointerdown', onPointer);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('pointerdown', onPointer);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
+  const unmuteFromPill = useCallback(() => {
     const video = videoRef.current;
     if (!video) {
       setFailed(true);
       return;
     }
-    setPhase('cinema');
-    // User gesture → playback with sound is permitted.
+    // If autoplay was blocked outright, start playback here (real gesture).
+    if (video.paused) {
+      video.muted = false;
+      video.volume = 1;
+      video.play().then(
+        () => setMuted(false),
+        () => setFailed(true),
+      );
+      return;
+    }
     video.muted = false;
     video.volume = 1;
-    video.play().catch(() => {
-      // Blocked or undecodable → never trap the visitor.
-      setFailed(true);
-    });
+    setMuted(false);
   }, []);
 
   // Fallback choreography (video unavailable or ?nocine=1): split → logo → finish.
   useEffect(() => {
     if (!failed && !forceFallback) return;
     const timers: number[] = [];
-    if (phase === 'gate' || phase === 'cinema') {
+    if (phase === 'cinema') {
       timers.push(window.setTimeout(() => setPhase('fallback-split'), 500));
     } else if (phase === 'fallback-split') {
       timers.push(window.setTimeout(() => setPhase('fallback-reveal'), 900));
@@ -176,7 +222,7 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
   const showFallbackSplit = phase === 'fallback-split' || phase === 'fallback-reveal';
   const showLogo = phase === 'reveal' || phase === 'fallback-reveal';
   const splitting = showSplit || showFallbackSplit;
-  const inGate = phase === 'gate' && !failed && !forceFallback;
+  const showSoundPill = muted && (phase === 'cinema' || phase === 'split') && !failed && !forceFallback;
 
   return (
     <AnimatePresence>
@@ -213,51 +259,18 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
             </motion.div>
           )}
 
-          {/* ── Enter gate (also the poster/loading state) ── */}
-          {inGate && (
-            <div className="absolute inset-0 z-30">
-              <Image
-                src={POSTER_SRC}
-                alt=""
-                fill
-                priority
-                className="object-cover"
-                sizes="100vw"
-              />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/80" />
-              <div className="relative flex h-full flex-col items-center justify-center gap-5 px-6 text-center">
-                <span className="overflow-hidden rounded-[28px] shadow-[0_0_80px_rgba(255,122,26,0.45)]">
-                  <Image
-                    src="/brand/campusninja-logo.png"
-                    alt="CampusNinja logo"
-                    width={72}
-                    height={72}
-                    priority
-                    className="h-[72px] w-[72px] object-contain"
-                  />
-                </span>
-                <p className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-                  Campus<span className="text-[#FF7A1A]">Ninja</span>
-                </p>
-                <p className="font-mono text-[11px] font-medium uppercase tracking-[0.3em] text-zinc-400 sm:text-xs">
-                  A cinematic intro plays with sound
-                </p>
-                <button
-                  type="button"
-                  onClick={startPlayback}
-                  autoFocus
-                  className="mt-2 rounded-full bg-[#FF7A1A] px-8 py-3 text-sm font-bold text-black shadow-[0_0_40px_rgba(255,122,26,0.5)] transition hover:bg-[#ff8f3d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:text-base"
-                >
-                  Enter Campus Ninja →
-                </button>
-                <button
-                  type="button"
-                  onClick={finish}
-                  className="font-mono text-[11px] uppercase tracking-[0.25em] text-zinc-500 transition hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A1A]"
-                >
-                  Skip intro
-                </button>
-              </div>
+          {/* ── Unobtrusive sound pill (autoplay starts muted; first tap
+              enables sound — no welcome card, no blocked experience) ── */}
+          {showSoundPill && (
+            <div className="absolute inset-x-0 bottom-0 z-40 flex justify-center p-4 sm:p-6">
+              <button
+                type="button"
+                onClick={unmuteFromPill}
+                aria-label="Play the cinematic intro with sound"
+                className="rounded-full border border-[#FF7A1A]/50 bg-black/60 px-5 py-2.5 text-xs font-semibold text-zinc-100 backdrop-blur transition hover:border-[#FF7A1A] hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A1A] sm:text-sm"
+              >
+                Tap for sound
+              </button>
             </div>
           )}
 
@@ -403,9 +416,8 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
             </motion.div>
           )}
 
-          {/* Caption + skip (always available once past the gate choice) */}
-          {!inGate && (
-            <div className="absolute inset-x-0 top-0 z-40 flex items-start justify-between p-4 sm:p-6">
+          {/* Caption + skip (always available) */}
+          <div className="absolute inset-x-0 top-0 z-40 flex items-start justify-between p-4 sm:p-6">
               <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500 sm:text-xs">
                 Cinematic intro — skippable
               </p>
@@ -417,7 +429,6 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
                 Skip intro →
               </button>
             </div>
-          )}
         </motion.div>
       )}
     </AnimatePresence>
