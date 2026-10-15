@@ -1,9 +1,17 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import {
+  isIntroAudioEnabled,
+  setIntroAudioEnabled,
+  soundImpact,
+  soundReveal,
+  stopIntroBed,
+  unlockIntroAudio,
+} from './introSound';
 
 /**
  * Cinematic intro overlay — real 3D ninja (Three.js/WebGL) walk-in, diagonal
@@ -12,6 +20,11 @@ import Image from 'next/image';
  *
  * Asset: CC0 "NINJA CHARACTER" by styloo (`public/models/ninja/`, CREDITS.md).
  * Walk + slash are procedurally authored on the rig (stylised, no mocap claims).
+ *
+ * Sound: fully procedural Web Audio (`introSound.ts`, no audio files or
+ * licenses). Browsers forbid audio before a user gesture, so the intro starts
+ * silent with a visible "Sound on" button; all cues fire from the 3D scene
+ * clock and are silent no-ops until the user enables sound.
  *
  * Safety / accessibility:
  * - Always skippable (Skip button, Escape), auto-dismisses via sequence end
@@ -65,6 +78,8 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
   const [phase, setPhase] = useState<Phase>('loading');
   const [visible, setVisible] = useState(true);
   const [degraded, setDegraded] = useState(false);
+  const [audioOn, setAudioOn] = useState(false);
+  const playedCues = useRef<Set<string>>(new Set());
   const shards = useMemo(() => buildShards(26), []);
   const freezeAt = useMemo(() => {
     if (typeof window === 'undefined') return null;
@@ -79,8 +94,18 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
 
   const finish = useCallback(() => {
     setVisible(false);
+    stopIntroBed();
     window.setTimeout(onComplete, 450);
   }, [onComplete]);
+
+  const toggleAudio = useCallback(() => {
+    if (isIntroAudioEnabled()) {
+      setIntroAudioEnabled(false);
+      setAudioOn(false);
+    } else {
+      setAudioOn(unlockIntroAudio());
+    }
+  }, []);
 
   const enterFallback = useCallback(() => {
     setDegraded(true);
@@ -100,6 +125,23 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
     }
     return () => timers.forEach((t) => window.clearTimeout(t));
   }, [degraded, phase, finish]);
+
+  // Sound the visual beats. The main-path impact is played inside the 3D
+  // scene on the exact blade-crossing frame; here we cover the fallback path
+  // and the logo reveal. All are silent no-ops until sound is enabled.
+  useEffect(() => {
+    if (phase === 'fallback-split' && !playedCues.current.has('split')) {
+      playedCues.current.add('split');
+      soundImpact();
+    }
+    if (
+      (phase === 'reveal' || phase === 'fallback-reveal') &&
+      !playedCues.current.has('reveal')
+    ) {
+      playedCues.current.add('reveal');
+      soundReveal();
+    }
+  }, [phase]);
 
   // Absolute failsafe + Escape + load timeout → degraded path (never stuck).
   useEffect(() => {
@@ -202,23 +244,64 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
 
           {/* ── Diagonal screen-split panels (seam matches the slash diagonal:
               blade travels screen top-left → bottom-right).
-              Transparent until the cut so the 3D stage stays visible. ── */}
+              Transparent until the cut so the 3D stage stays visible.
+              Panels tip in 3D perspective as they part, and each carries its
+              own cut-edge glow that fades out — the split reads as fractured
+              matter, not sliding rectangles. ── */}
           <motion.div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-[#101014] via-[#0A0A0D] to-[#060607]"
-            style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }}
+            style={{ clipPath: 'polygon(0 0, 100% 0, 100% 100%)', transformPerspective: 900 }}
             initial={{ opacity: 0 }}
-            animate={splitting ? { x: '14%', y: '-14%', opacity: 0.88 } : { x: '0%', y: '0%', opacity: 0 }}
+            animate={
+              splitting
+                ? { x: '14%', y: '-14%', opacity: 0.88, rotateX: -10, rotateY: 12 }
+                : { x: '0%', y: '0%', opacity: 0, rotateX: 0, rotateY: 0 }
+            }
             transition={{ duration: 0.8, ease: [0.7, 0, 0.2, 1] }}
-          />
+          >
+            {splitting && (
+              <motion.div
+                aria-hidden="true"
+                className="absolute left-1/2 top-1/2 h-[4px] w-[145%]"
+                style={{
+                  background: 'linear-gradient(90deg, transparent, #FFF7ED 35%, #FF7A1A 60%, transparent)',
+                  boxShadow: '0 0 24px 5px rgba(255,122,26,0.85)',
+                  transform: 'translate(-50%, -50%) rotate(45deg)',
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 1, 1, 0] }}
+                transition={{ duration: 1.2, ease: 'easeOut' }}
+              />
+            )}
+          </motion.div>
           <motion.div
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-b from-[#141013] via-[#0D0A0B] to-[#060607]"
-            style={{ clipPath: 'polygon(0 0, 100% 100%, 0 100%)' }}
+            style={{ clipPath: 'polygon(0 0, 100% 100%, 0 100%)', transformPerspective: 900 }}
             initial={{ opacity: 0 }}
-            animate={splitting ? { x: '-14%', y: '14%', opacity: 0.88 } : { x: '0%', y: '0%', opacity: 0 }}
+            animate={
+              splitting
+                ? { x: '-14%', y: '14%', opacity: 0.88, rotateX: 10, rotateY: -12 }
+                : { x: '0%', y: '0%', opacity: 0, rotateX: 0, rotateY: 0 }
+            }
             transition={{ duration: 0.8, ease: [0.7, 0, 0.2, 1] }}
-          />
+          >
+            {splitting && (
+              <motion.div
+                aria-hidden="true"
+                className="absolute left-1/2 top-1/2 h-[4px] w-[145%]"
+                style={{
+                  background: 'linear-gradient(90deg, transparent, #FF7A1A 40%, #FFF7ED 65%, transparent)',
+                  boxShadow: '0 0 24px 5px rgba(255,122,26,0.85)',
+                  transform: 'translate(-50%, -50%) rotate(45deg)',
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 1, 1, 0] }}
+                transition={{ duration: 1.2, ease: 'easeOut' }}
+              />
+            )}
+          </motion.div>
 
           {/* Seam flash along the cut */}
           {splitting && (
@@ -324,18 +407,29 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
             </motion.div>
           )}
 
-          {/* Caption + skip (always available) */}
+          {/* Caption + sound + skip (always available) */}
           <div className="absolute inset-x-0 top-0 z-40 flex items-start justify-between p-4 sm:p-6">
             <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500 sm:text-xs">
               Cinematic intro — skippable
             </p>
-            <button
-              type="button"
-              onClick={finish}
-              className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs font-semibold text-zinc-200 backdrop-blur transition hover:border-[#FF7A1A]/60 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A1A] sm:text-sm"
-            >
-              Skip intro →
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleAudio}
+                aria-pressed={audioOn}
+                aria-label={audioOn ? 'Mute intro sound' : 'Enable intro sound'}
+                className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs font-semibold text-zinc-200 backdrop-blur transition hover:border-[#FF7A1A]/60 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A1A] sm:text-sm"
+              >
+                {audioOn ? 'Sound on' : 'Sound off'}
+              </button>
+              <button
+                type="button"
+                onClick={finish}
+                className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs font-semibold text-zinc-200 backdrop-blur transition hover:border-[#FF7A1A]/60 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A1A] sm:text-sm"
+              >
+                Skip intro →
+              </button>
+            </div>
           </div>
         </motion.div>
       )}

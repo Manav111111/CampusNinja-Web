@@ -3,16 +3,38 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import {
+  soundCloth,
+  soundDraw,
+  soundFootstep,
+  soundImpact,
+  soundWhoosh,
+} from './introSound';
 
 /**
  * Real-time 3D ninja cinematic (Three.js / WebGL).
  *
  * Asset: CC0 "NINJA CHARACTER" by styloo — full-body 75-joint humanoid rig
  * (`public/models/ninja/ninja.glb`, see CREDITS.md). The GLB ships zero
- * animation clips, so the walk-in and diagonal sword-slash choreography is
- * procedurally authored on the rig at runtime (stylised — no mocap claims).
+ * animation clips, so the walk-in, eye-contact hold and diagonal sword-slash
+ * choreography is procedurally authored on the rig at runtime (stylised — no
+ * mocap claims, no photorealism claims: this is genuine 3D, not a flat
+ * illustration, but the source model is hand-painted low-poly. See CREDITS.md
+ * for the production-pipeline verdict).
  * The katana is an authored mesh parented to the camera-side `DEF-hand.R`
  * bone, so it follows the hand exactly through every move.
+ *
+ * Timeline (scene clock t, seconds):
+ *   0.2–2.6  Shot A — approach: full-body walk out of darkness TOWARD the
+ *            camera (depth + lateral travel), footsteps drive the audio cues.
+ *   2.6–3.4  Shot B — eye contact: planted close, camera pushes to a
+ *            face-tracked close-up and holds so the eyes register.
+ *   3.4–3.95 windup coil + fast pull-back, katana draw cue.
+ *   3.95–4.32 Shot C — diagonal slash, screen top-left → bottom-right.
+ *   4.07     Shot D — blade crosses frame centre: impact sound, ember burst,
+ *            camera shake; parent fires the DOM screen-split from this exact
+ *            frame (never on an independent timer).
+ *   5.3      Shot E — sequence end; parent reveals the real CampusNinja logo.
  *
  * The parent drives the DOM screen-split/logo reveal from `onSlashImpact`,
  * fired on the exact frame the blade crosses frame centre.
@@ -33,22 +55,27 @@ interface NinjaSceneProps extends NinjaSceneCallbacks {
 // ── Tunable staging constants ─────────────────────────────────────────────
 const MODEL_URL = '/models/ninja/ninja.glb';
 const LOAD_TIMEOUT_MS = 12000;
-const WALK_START_X = -3.1;
+const WALK_START_X = -2.9;
+const WALK_START_Z = -2.2;
+const WALK_END_Z = 0.55;
 const WALK_END_X_DESKTOP = -0.2;
 const WALK_END_X_PORTRAIT = -0.75;
-const WALK_T0 = 0.25;
-const WALK_T1 = 2.0;
-const WINDUP_T1 = 2.35;
-const STRIKE_T0 = 2.35;
-const STRIKE_T1 = 2.72;
+const WALK_T0 = 0.2;
+const WALK_T1 = 2.6;
+/** Eye-contact hold window (planted close, face-tracked close-up). */
+const HOLD_T1 = 3.4;
+const WINDUP_T0 = 3.4;
+const WINDUP_T1 = 3.95;
+const STRIKE_T0 = 3.95;
+const STRIKE_T1 = 4.32;
 /**
  * Blade-crossing moment. The sweep uses easeOutCubic (explosive start), so the
- * blade crosses frame centre early in the window — verified against frozen
- * frames, not assumed.
+ * blade crosses frame centre early in the window — same verified 0.32 ratio
+ * as the previous timing, carried over to the retimed strike.
  */
-const IMPACT_T = 2.47;
-const SETTLE_T1 = 3.4;
-const END_T = 3.7;
+const IMPACT_T = 4.07;
+const SETTLE_T1 = 5.0;
+const END_T = 5.3;
 const ACTOR_SCALE = 1.18;
 /**
  * Character walks screen-left → screen-right. Facing is biased so the
@@ -89,6 +116,10 @@ function easeInOut(u: number): number {
 }
 function easeOutCubic(u: number): number {
   return 1 - Math.pow(1 - u, 3);
+}
+function smoothstep(a: number, b: number, v: number): number {
+  const u = clamp01((v - a) / (b - a));
+  return u * u * (3 - 2 * u);
 }
 
 export default function NinjaScene({ onReady, onSlashImpact, onSequenceEnd, onError, freezeAt = null }: NinjaSceneProps) {
@@ -170,12 +201,17 @@ export default function NinjaScene({ onReady, onSlashImpact, onSequenceEnd, onEr
 
     // ── Scene / camera / lights ──
     const scene = new THREE.Scene();
+    // Controlled haze: the ninja emerges from darkness and the far end of the
+    // walk stays swallowed by it. Additive FX materials opt out (fog:false)
+    // so embers/trails keep their energy at any distance.
+    scene.fog = new THREE.FogExp2(0x060607, 0.055);
     const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 60);
     // Responsive framing: pull back + shift focus on narrow/portrait screens
     // so the full walk-in path and slash stay in frame on mobile.
     const camBase = new THREE.Vector3(0.15, 1.18, 5.0);
     const camLook = new THREE.Vector3(0.1, 1.02, 0);
     let walkEndX = WALK_END_X_DESKTOP;
+    let portraitClose = false;
     function frameCamera() {
       const w = host.clientWidth || 2;
       const h = host.clientHeight || 2;
@@ -185,10 +221,12 @@ export default function NinjaScene({ onReady, onSlashImpact, onSequenceEnd, onEr
         camBase.set(-0.55, 1.25, 7.4);
         camLook.set(-0.55, 1.0, 0);
         walkEndX = WALK_END_X_PORTRAIT;
+        portraitClose = true;
       } else {
         camBase.set(0.15, 1.18, 5.0);
         camLook.set(0.1, 1.02, 0);
         walkEndX = WALK_END_X_DESKTOP;
+        portraitClose = false;
       }
       camera.updateProjectionMatrix();
     }
@@ -235,7 +273,7 @@ export default function NinjaScene({ onReady, onSlashImpact, onSequenceEnd, onEr
     const glowTex = new THREE.CanvasTexture(glowCanvas);
     const glowDisc = new THREE.Mesh(
       new THREE.PlaneGeometry(2.2, 2.2),
-      new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }),
+      new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }),
     );
     glowDisc.rotation.x = -Math.PI / 2;
     glowDisc.position.y = 0.01;
@@ -267,6 +305,7 @@ export default function NinjaScene({ onReady, onSlashImpact, onSequenceEnd, onEr
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       sizeAttenuation: true,
+      fog: false,
     });
     const embers = new THREE.Points(emberGeo, emberMat);
     embers.frustumCulled = false;
@@ -312,6 +351,7 @@ export default function NinjaScene({ onReady, onSlashImpact, onSequenceEnd, onEr
       depthWrite: false,
       depthTest: false, // slash energy reads over the body — standard cinematic cheat
       blending: THREE.AdditiveBlending,
+      fog: false,
     });
     const trail = new THREE.Mesh(trailGeo, trailMat);
     trail.frustumCulled = false;
@@ -335,6 +375,7 @@ export default function NinjaScene({ onReady, onSlashImpact, onSequenceEnd, onEr
       depthWrite: false,
       depthTest: false,
       blending: THREE.AdditiveBlending,
+      fog: false,
     });
     const arc = new THREE.Mesh(arcGeo, arcMat);
     arc.renderOrder = 11;
@@ -413,7 +454,17 @@ export default function NinjaScene({ onReady, onSlashImpact, onSequenceEnd, onEr
     let lastNow = -1;
     let impactFired = false;
     let endFired = false;
+    let drawFired = false;
+    let whooshFired = false;
+    let lastStep = -1;
     let shake = 0;
+    // Face-tracked close-up scratch objects (no per-frame allocation).
+    const facePos = new THREE.Vector3(-0.2, 1.77, WALK_END_Z);
+    const eyeL = new THREE.Vector3();
+    const eyeR = new THREE.Vector3();
+    const baseCamPos = new THREE.Vector3();
+    const closeCamPos = new THREE.Vector3();
+    const baseLook = new THREE.Vector3();
 
     function animate(now: number) {
       if (disposed) return;
@@ -425,14 +476,45 @@ export default function NinjaScene({ onReady, onSlashImpact, onSequenceEnd, onEr
       if (freeze != null && t >= freeze) dt = 0;
       t += dt;
 
-      // Camera: slow dolly-in + impact shake
+      // Camera: slow dolly-in, face-tracked close-up hold, fast pull-back.
+      // wClose rises through the eye-contact beat and releases into the
+      // windup, so the lens never cuts — one continuous move.
+      const wClose =
+        smoothstep(WALK_T1, WALK_T1 + 0.45, t) * (1 - smoothstep(HOLD_T1, WINDUP_T1, t));
+      const eyeLBone = bones.get('DEF-eye.L');
+      const eyeRBone = bones.get('DEF-eye.R');
+      if (eyeLBone && eyeRBone) {
+        eyeLBone.obj.getWorldPosition(eyeL);
+        eyeRBone.obj.getWorldPosition(eyeR);
+        facePos.copy(eyeL).add(eyeR).multiplyScalar(0.5);
+      } else if (actor) {
+        facePos.set(actor.position.x, 1.77 * ACTOR_SCALE, actor.position.z);
+      }
       const dolly = easeInOut(clamp01(t / WALK_T1));
-      camera.position.set(
-        camBase.x + (Math.random() - 0.5) * shake,
-        camBase.y + (Math.random() - 0.5) * shake,
-        camBase.z - dolly * 0.55 + (Math.random() - 0.5) * shake,
+      baseCamPos.set(
+        camBase.x,
+        camBase.y,
+        camBase.z - dolly * 0.55,
       );
-      camera.lookAt(camLook);
+      baseLook.copy(camLook);
+      // Close-up: stay on the +Z side of the face, slight 3/4 offset so the
+      // sword-side depth reads; wider distance on portrait screens.
+      const closeDist = portraitClose ? 2.7 : 1.8;
+      closeCamPos.set(
+        facePos.x * 0.55 + 0.25,
+        facePos.y + 0.08,
+        facePos.z + closeDist,
+      );
+      camera.position.lerpVectors(baseCamPos, closeCamPos, wClose);
+      camera.position.x += (Math.random() - 0.5) * shake;
+      camera.position.y += (Math.random() - 0.5) * shake;
+      camera.position.z += (Math.random() - 0.5) * shake;
+      // Look target glides from the full-body mark to the face and back.
+      camera.lookAt(
+        baseLook.x + (facePos.x - baseLook.x) * wClose,
+        baseLook.y + (facePos.y - baseLook.y) * wClose,
+        baseLook.z + (facePos.z - baseLook.z) * wClose,
+      );
       if (shake > 0) shake = Math.max(0, shake - dt * 1.4);
 
       // Ambient embers drift
@@ -459,11 +541,25 @@ export default function NinjaScene({ onReady, onSlashImpact, onSequenceEnd, onEr
       pos.needsUpdate = true;
 
       if (actor) {
-        // ── Locomotion: walk-in then plant ──
+        // ── Locomotion: walk-in toward the camera, then plant ──
         const wu = easeInOut(clamp01((t - WALK_T0) / (WALK_T1 - WALK_T0)));
         const walking = t < WALK_T1;
         actor.position.x = WALK_START_X + (walkEndX - WALK_START_X) * wu;
-        if (walking) glowDisc.position.x = actor.position.x + 0.2;
+        actor.position.z = WALK_START_Z + (WALK_END_Z - WALK_START_Z) * wu;
+        if (walking) {
+          glowDisc.position.x = actor.position.x + 0.2;
+          glowDisc.position.z = actor.position.z;
+        }
+        // Footfalls drive the audio: two contacts per stride cycle, sides
+        // alternating. Fired from this clock, so steps can never desync.
+        if (walking && t >= WALK_T0) {
+          const stepIdx = Math.floor((t - WALK_T0) * 1.15 * 2);
+          if (stepIdx !== lastStep && stepIdx >= 0) {
+            lastStep = stepIdx;
+            soundFootstep(stepIdx % 2 === 0);
+            if (stepIdx % 2 === 1) soundCloth();
+          }
+        }
         const wPhase = (t - WALK_T0) * Math.PI * 2 * 1.15;
         const wAmp = walking ? Math.min(1, (t - WALK_T0) * 3) * (1 - wu * 0.25) : 0;
 
@@ -485,11 +581,25 @@ export default function NinjaScene({ onReady, onSlashImpact, onSequenceEnd, onEr
         poseBone('DEF-spine', walking ? 0.1 : 0.02, 0, 0);
         poseBone('DEF-spine.001', walking ? 0.06 : 0.01, Math.sin(wPhase) * 0.05 * wAmp, 0);
 
-        // ── Windup + diagonal slash ──
-        const windU = clamp01((t - WALK_T1) / (WINDUP_T1 - WALK_T1));
+        // ── Hold (eye contact) + windup + diagonal slash ──
+        const windU = clamp01((t - WINDUP_T0) / (WINDUP_T1 - WINDUP_T0));
         const strikeU = clamp01((t - STRIKE_T0) / (STRIKE_T1 - STRIKE_T0));
         const strike = easeOutCubic(strikeU);
         const settleU = easeInOut(clamp01((t - STRIKE_T1) / (SETTLE_T1 - STRIKE_T1)));
+        // Eye-contact beat: the upper body turns toward the lens while the
+        // close-up holds, then unwinds INTO the slash. Feet stay planted —
+        // the turn is distributed through the spine, not the root.
+        const holdW = smoothstep(WALK_T1, WALK_T1 + 0.45, t) * (1 - strikeU);
+        const turnToCam = -0.6 * holdW;
+
+        if (!drawFired && t >= WINDUP_T0 + 0.05) {
+          drawFired = true;
+          soundDraw();
+        }
+        if (!whooshFired && t >= STRIKE_T0) {
+          whooshFired = true;
+          soundWhoosh(STRIKE_T1 - STRIKE_T0 + 0.12);
+        }
 
         if (t >= WALK_T1) {
           // Coil: crouch, torso twists away, sword arm cocks up-back.
@@ -500,11 +610,11 @@ export default function NinjaScene({ onReady, onSlashImpact, onSequenceEnd, onEr
           actor.position.x = walkEndX + strike * 0.4 - settleU * 0.08;
           actor.rotation.y = qaFace - strike * 0.4 + settleU * 0.15;
           const coilYaw = (-0.7 * windU * (1 - strike) + 1.0 * strike - settleU * 0.3) * qaCoil;
-          poseBone('DEF-spine', 0.16 * windU - 0.05 * strike, coilYaw * 0.35, 0);
-          poseBone('DEF-spine.001', 0.1 * windU, coilYaw * 0.3, 0);
-          poseBone('DEF-spine.002', 0, coilYaw * 0.2, 0);
+          poseBone('DEF-spine', 0.16 * windU - 0.05 * strike, coilYaw * 0.35 + turnToCam * 0.3, 0);
+          poseBone('DEF-spine.001', 0.1 * windU, coilYaw * 0.3 + turnToCam * 0.25, 0);
+          poseBone('DEF-spine.002', 0, coilYaw * 0.2 + turnToCam * 0.2, 0);
           // Head stays readable: counter the torso twist so the face holds toward camera.
-          poseBone('DEF-spine.006', -0.08 * strike, -coilYaw * 0.85 + 0.25 * windU, 0);
+          poseBone('DEF-spine.006', -0.08 * strike - 0.04 * holdW, -coilYaw * 0.85 + 0.25 * windU + turnToCam * 0.45, 0);
           // Legs: lunge stance
           poseBone('DEF-thigh.L', 0.5 * windU - 0.15 * strike, 0, 0.06);
           poseBone('DEF-thigh.R', -0.45 * windU + 0.35 * strike, 0, -0.06);
@@ -593,6 +703,7 @@ export default function NinjaScene({ onReady, onSlashImpact, onSequenceEnd, onEr
           impactFired = true;
           shake = 0.09;
           burstEmbers(90);
+          soundImpact();
           try {
             if (katanaTip && katanaBase) {
               const tipW = new THREE.Vector3();
@@ -668,12 +779,13 @@ export default function NinjaScene({ onReady, onSlashImpact, onSequenceEnd, onEr
         actor.add(model);
         actor.scale.setScalar(ACTOR_SCALE);
         actor.rotation.y = qaFace;
-        actor.position.set(WALK_START_X, 0, 0);
+        actor.position.set(WALK_START_X, 0, WALK_START_Z);
         scene.add(actor);
 
         const rigNames = [
           'DEF-spine', 'DEF-spine.001', 'DEF-spine.002', 'DEF-spine.003',
           'DEF-spine.006',
+          'DEF-eye.L', 'DEF-eye.R',
           'DEF-shoulder.L', 'DEF-upper_arm.L', 'DEF-forearm.L', 'DEF-hand.L',
           'DEF-shoulder.R', 'DEF-upper_arm.R', 'DEF-forearm.R', 'DEF-hand.R',
           'DEF-thigh.L', 'DEF-shin.L', 'DEF-foot.L', 'DEF-toe.L',
@@ -692,6 +804,7 @@ export default function NinjaScene({ onReady, onSlashImpact, onSequenceEnd, onEr
         }
         if (hideSet.has('ninja')) actor.visible = false;
         glowDisc.position.x = walkEndX + 0.2;
+        glowDisc.position.z = WALK_END_Z;
         cb().onReady();
         raf = requestAnimationFrame(animate);
       })

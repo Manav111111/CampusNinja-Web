@@ -33,6 +33,39 @@
 - The katana is an authored low-poly mesh parented to the `DEF-hand.R` bone,
   so it follows the hand exactly during all movement.
 
+## Sound design
+
+- All intro audio is **procedurally synthesized at runtime** with the Web Audio
+  API (`src/components/landing/introSound.ts`): footstep thumps, cloth swishes,
+  katana draw, strike whoosh, cut transient + bass impact, ember ticks, logo
+  reveal resonance, and a low room-tone bed behind a limiter.
+- **No audio files, no samples, no licenses or attribution obligations.**
+- Cues fire from the 3D scene clock at exact timeline crossings (footfalls,
+  draw, strike start, blade impact), so sound cannot drift from the picture.
+  The intro starts silent (browser autoplay rules) with a visible Sound on/off
+  toggle; everything is a silent no-op until the user enables sound.
+
+## Production-pipeline verdict (Oct 2026)
+
+- Investigated: (1) rendering this rig offline (Blender or equivalent),
+  (2) a purchasable/downloadable cinematic-grade ninja asset with explicit
+  commercial rights, (3) hybrid 3D + DOM split, (4) real-time WebGL only.
+- Outcome: this environment has **no Blender, no ffmpeg, no GPU render farm,
+  and no licensed AI-video pipeline**, and the only verifiably licensed 3D
+  ninja obtainable here is the stylised CC0 model above — re-rendering it
+  offline would still be stylised, never photorealistic. No
+  production-quality pre-rendered video was generated, and none is shipped.
+- Shipped instead: genuine real-time 3D (full-body rig, procedural walk
+  toward the camera, face-tracked eye-contact close-up, hand-parented katana
+  slash) composited with a DOM screen-split and the real CampusNinja logo.
+- **Not claimed:** photorealism, motion capture, or volumetric rendering.
+- To reach true movie quality later: license or commission a high-fidelity PBR
+  ninja (skin/cloth/steel scanned materials, facial rig with eyes), mocap or
+  hand-keyed walk/slash, offline path-traced render to web-optimised
+  MP4/WebM, and a studio sound mix — that is an asset-budget task, not a code
+  task, and the current scene clock + `onSlashImpact` sync point are already
+  shaped to drive a video element if one arrives.
+
 ## Candidates investigated and rejected
 
 - `wolfxxx/GROKNinja` — Mixamo-derived character/animation takes stored in
