@@ -1,42 +1,48 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import dynamic from 'next/dynamic';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
-import {
-  isIntroAudioEnabled,
-  setIntroAudioEnabled,
-  soundImpact,
-  soundReveal,
-  stopIntroBed,
-  unlockIntroAudio,
-} from './introSound';
 
 /**
- * Cinematic intro overlay — real 3D ninja (Three.js/WebGL) walk-in, diagonal
- * katana slash, screen split synchronised to the blade crossing frame centre,
- * ember burst, then the real CampusNinja logo reveal.
+ * Cinematic intro overlay — pre-rendered 3D samurai cinematic (Blender/Eevee).
  *
- * Asset: CC0 "NINJA CHARACTER" by styloo (`public/models/ninja/`, CREDITS.md).
- * Walk + slash are procedurally authored on the rig (stylised, no mocap claims).
+ * Source: `Documents/CampusNinja-Cine/grab3d/cine_full.blend` (kept outside the
+ * repo). Character: Grab3D "Samurai" (CC0 1.0, no attribution required;
+ * bundled LICENSE.txt in the external workspace). Katana: Poly Haven
+ * "Antique Katana" (CC0). Scabbard modelled in Blender. All sound is
+ * procedurally synthesised original audio embedded in the video file — zero
+ * third-party samples, zero licenses, zero royalties.
  *
- * Sound: fully procedural Web Audio (`introSound.ts`, no audio files or
- * licenses). Browsers forbid audio before a user gesture, so the intro starts
- * silent with a visible "Sound on" button; all cues fire from the 3D scene
- * clock and are silent no-ops until the user enables sound.
+ * Timeline (video clock, verified against rendered frames):
+ * - 0.0s  establishing push-in over the burning fortress courtyard
+ * - ~2.0s  samurai walk-in (mocap walk action, constant-speed root travel)
+ * - ~5.4s  hand grips hilt, katana draw along the scabbard axis
+ * - ~6.7s  diagonal slash, screen top-left → bottom-right
+ * - 7.083s IMPACT (frame 170): fullscreen flash; DOM screen-split fires here
+ * - 8.0s  video ends over settling embers; logo reveal follows
+ *
+ * Sound is part of the video file, so it can never desynchronise. Browsers
+ * forbid autoplay with sound, so playback starts from an explicit
+ * "Enter Campus Ninja" gesture. Reduced-motion users never render this
+ * (parent gate in `src/app/page.tsx`).
  *
  * Safety / accessibility:
- * - Always skippable (Skip button, Escape), auto-dismisses via sequence end
- *   plus an absolute failsafe; Login / Sign Up stay mounted behind it.
- * - Reduced-motion users never render this (parent gate).
- * - WebGL/load failure or `?no3d=1` → honest degraded cinematic (slash beam +
- *   split + logo, no ninja) instead of a stuck loader. Never waits indefinitely.
+ * - Always skippable (Skip button, Escape, gate-level skip link).
+ * - Absolute failsafe timer; video error/crash → immediate finish (landing
+ *   page is never trapped behind the intro).
+ * - Login / Sign Up stay mounted behind the overlay the whole time.
+ * - `?nocine=1` forces the silent fallback path (logo + split, no video).
  */
 
-const NinjaScene = dynamic(() => import('./NinjaScene'), { ssr: false });
+const VIDEO_SRC = '/videos/cn-intro.mp4';
+const POSTER_SRC = '/videos/cn-intro-poster.jpg';
+/** Blade-crossing frame 170 @ 24fps, verified against rendered frames. */
+const IMPACT_T = 170 / 24;
+const FAILSAFE_MS = 20000;
+const REVEAL_HOLD_MS = 1400;
 
-type Phase = 'loading' | 'cinema' | 'split' | 'reveal' | 'fallback-slash' | 'fallback-split' | 'fallback-reveal';
+type Phase = 'gate' | 'cinema' | 'split' | 'reveal' | 'fallback-split' | 'fallback-reveal';
 
 interface IntroOverlayProps {
   onComplete: () => void;
@@ -72,127 +78,105 @@ function buildShards(count: number): Shard[] {
   });
 }
 
-const LOAD_TIMEOUT_MS = 8000;
-
 export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
-  const [phase, setPhase] = useState<Phase>('loading');
+  const [phase, setPhase] = useState<Phase>('gate');
   const [visible, setVisible] = useState(true);
-  const [degraded, setDegraded] = useState(false);
-  const [audioOn, setAudioOn] = useState(false);
-  const playedCues = useRef<Set<string>>(new Set());
+  const [failed, setFailed] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const finishedRef = useRef(false);
   const shards = useMemo(() => buildShards(26), []);
-  const freezeAt = useMemo(() => {
-    if (typeof window === 'undefined') return null;
-    const v = new URLSearchParams(window.location.search).get('freeze');
-    const n = v == null ? NaN : Number(v);
-    return Number.isFinite(n) ? n : null;
-  }, []);
   const forceFallback = useMemo(() => {
     if (typeof window === 'undefined') return false;
-    return new URLSearchParams(window.location.search).get('no3d') === '1';
+    return new URLSearchParams(window.location.search).get('nocine') === '1';
   }, []);
 
   const finish = useCallback(() => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    // Guarantee silence: stop the video before unmounting the overlay.
+    try {
+      videoRef.current?.pause();
+      videoRef.current?.removeAttribute('src');
+      videoRef.current?.load();
+    } catch {
+      // best-effort cleanup only
+    }
     setVisible(false);
-    stopIntroBed();
     window.setTimeout(onComplete, 450);
   }, [onComplete]);
 
-  const toggleAudio = useCallback(() => {
-    if (isIntroAudioEnabled()) {
-      setIntroAudioEnabled(false);
-      setAudioOn(false);
-    } else {
-      setAudioOn(unlockIntroAudio());
+  const startPlayback = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) {
+      setFailed(true);
+      return;
     }
+    setPhase('cinema');
+    // User gesture → playback with sound is permitted.
+    video.muted = false;
+    video.volume = 1;
+    video.play().catch(() => {
+      // Blocked or undecodable → never trap the visitor.
+      setFailed(true);
+    });
   }, []);
 
-  const enterFallback = useCallback(() => {
-    setDegraded(true);
-    setPhase((p) => (p === 'reveal' || p === 'fallback-reveal' ? p : 'fallback-slash'));
-  }, []);
-
-  // Fallback choreography (no 3D): slash beam → split → logo → finish.
+  // Fallback choreography (video unavailable or ?nocine=1): split → logo → finish.
   useEffect(() => {
-    if (!degraded) return;
+    if (!failed && !forceFallback) return;
     const timers: number[] = [];
-    if (phase === 'fallback-slash') {
-      timers.push(window.setTimeout(() => setPhase('fallback-split'), 900));
+    if (phase === 'gate' || phase === 'cinema') {
+      timers.push(window.setTimeout(() => setPhase('fallback-split'), 500));
     } else if (phase === 'fallback-split') {
       timers.push(window.setTimeout(() => setPhase('fallback-reveal'), 900));
     } else if (phase === 'fallback-reveal') {
       timers.push(window.setTimeout(finish, 1500));
     }
     return () => timers.forEach((t) => window.clearTimeout(t));
-  }, [degraded, phase, finish]);
+  }, [failed, forceFallback, phase, finish]);
 
-  // Sound the visual beats. The main-path impact is played inside the 3D
-  // scene on the exact blade-crossing frame; here we cover the fallback path
-  // and the logo reveal. All are silent no-ops until sound is enabled.
+  // Absolute failsafe + Escape (never stuck, never trapped).
   useEffect(() => {
-    if (phase === 'fallback-split' && !playedCues.current.has('split')) {
-      playedCues.current.add('split');
-      soundImpact();
-    }
-    if (
-      (phase === 'reveal' || phase === 'fallback-reveal') &&
-      !playedCues.current.has('reveal')
-    ) {
-      playedCues.current.add('reveal');
-      soundReveal();
-    }
-  }, [phase]);
-
-  // Absolute failsafe + Escape + load timeout → degraded path (never stuck).
-  useEffect(() => {
-    const failsafe = window.setTimeout(finish, 11000);
-    const loadTimer = window.setTimeout(() => {
-      setPhase((p) => {
-        if (p === 'loading') enterFallback();
-        return p;
-      });
-    }, LOAD_TIMEOUT_MS);
+    const failsafe = window.setTimeout(finish, FAILSAFE_MS);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') finish();
     };
     window.addEventListener('keydown', onKey);
     return () => {
       window.clearTimeout(failsafe);
-      window.clearTimeout(loadTimer);
       window.removeEventListener('keydown', onKey);
     };
-  }, [finish, enterFallback]);
-
-  useEffect(() => {
-    if (forceFallback) enterFallback();
-  }, [forceFallback, enterFallback]);
-
-  const handleSceneError = useCallback(() => {
-    enterFallback();
-  }, [enterFallback]);
-
-  const handleSlashImpact = useCallback(() => {
-    // Split fires on the exact blade-crossing frame; the logo reveal fires on
-    // the scene's sequence-end event (never on an independent timer, so DOM
-    // and WebGL can never desynchronise on slow GPUs).
-    setPhase('split');
-  }, []);
-
-  const handleSequenceEnd = useCallback(() => {
-    setPhase((p) => (p === 'cinema' || p === 'split' ? 'reveal' : p));
-  }, []);
+  }, [finish]);
 
   // Reveal hold → finish.
   useEffect(() => {
     if (phase !== 'reveal') return;
-    const timer = window.setTimeout(finish, 1500);
+    const timer = window.setTimeout(finish, REVEAL_HOLD_MS);
     return () => window.clearTimeout(timer);
   }, [phase, finish]);
+
+  const handleTimeUpdate = useCallback(() => {
+    const t = videoRef.current?.currentTime ?? 0;
+    // Split fires on the verified blade-crossing frame, driven by the video
+    // clock itself so DOM and picture can never desynchronise.
+    if (t >= IMPACT_T) {
+      setPhase((p) => (p === 'cinema' ? 'split' : p));
+    }
+  }, []);
+
+  const handleEnded = useCallback(() => {
+    setPhase((p) => (p === 'split' || p === 'cinema' ? 'reveal' : p));
+  }, []);
+
+  const handleVideoError = useCallback(() => {
+    setFailed(true);
+  }, []);
 
   const showSplit = phase === 'split' || phase === 'reveal';
   const showFallbackSplit = phase === 'fallback-split' || phase === 'fallback-reveal';
   const showLogo = phase === 'reveal' || phase === 'fallback-reveal';
   const splitting = showSplit || showFallbackSplit;
+  const inGate = phase === 'gate' && !failed && !forceFallback;
 
   return (
     <AnimatePresence>
@@ -204,47 +188,83 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
           className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[#060607]"
           exit={{ opacity: 0, transition: { duration: 0.45, ease: 'easeInOut' } }}
         >
-          {/* ── 3D ninja stage (dissolves as the screen splits) ── */}
-          {!degraded && (
+          {/* ── Cinematic video stage (dissolves as the screen splits) ── */}
+          {!failed && !forceFallback && (
             <motion.div
               className="absolute inset-0"
               initial={{ opacity: 1 }}
-              // The 3D stage smoulders through the split, then dissolves for the logo.
-              animate={{ opacity: showLogo && freezeAt == null ? 0 : 1 }}
+              animate={{ opacity: showLogo ? 0 : 1 }}
               transition={{ duration: 0.6, ease: 'easeOut' }}
             >
-              <NinjaScene
-                freezeAt={freezeAt}
-                onReady={() => setPhase((p) => (p === 'loading' ? 'cinema' : p))}
-                onSlashImpact={handleSlashImpact}
-                onSequenceEnd={handleSequenceEnd}
-                onError={handleSceneError}
+              <video
+                ref={videoRef}
+                className="h-full w-full object-cover"
+                src={VIDEO_SRC}
+                poster={POSTER_SRC}
+                preload="auto"
+                playsInline
+                disablePictureInPicture
+                controls={false}
+                aria-label="Campus Ninja 3D cinematic: a samurai crosses a burning fortress courtyard and slashes the screen."
+                onTimeUpdate={handleTimeUpdate}
+                onEnded={handleEnded}
+                onError={handleVideoError}
               />
             </motion.div>
           )}
 
-          {/* Loading veil (lifts the moment the scene is ready) */}
-          {phase === 'loading' && !degraded && (
-            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-[#060607]">
-              <span className="overflow-hidden rounded-2xl shadow-[0_0_50px_rgba(255,122,26,0.35)]">
-                <Image
-                  src="/brand/campusninja-logo.png"
-                  alt=""
-                  width={56}
-                  height={56}
-                  priority
-                  className="h-14 w-14 animate-pulse object-contain"
-                />
-              </span>
-              <p className="font-mono text-[11px] uppercase tracking-[0.3em] text-zinc-500">
-                Summoning the ninja…
-              </p>
+          {/* ── Enter gate (also the poster/loading state) ── */}
+          {inGate && (
+            <div className="absolute inset-0 z-30">
+              <Image
+                src={POSTER_SRC}
+                alt=""
+                fill
+                priority
+                className="object-cover"
+                sizes="100vw"
+              />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/80" />
+              <div className="relative flex h-full flex-col items-center justify-center gap-5 px-6 text-center">
+                <span className="overflow-hidden rounded-[28px] shadow-[0_0_80px_rgba(255,122,26,0.45)]">
+                  <Image
+                    src="/brand/campusninja-logo.png"
+                    alt="CampusNinja logo"
+                    width={72}
+                    height={72}
+                    priority
+                    className="h-[72px] w-[72px] object-contain"
+                  />
+                </span>
+                <p className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+                  Campus<span className="text-[#FF7A1A]">Ninja</span>
+                </p>
+                <p className="font-mono text-[11px] font-medium uppercase tracking-[0.3em] text-zinc-400 sm:text-xs">
+                  A cinematic intro plays with sound
+                </p>
+                <button
+                  type="button"
+                  onClick={startPlayback}
+                  autoFocus
+                  className="mt-2 rounded-full bg-[#FF7A1A] px-8 py-3 text-sm font-bold text-black shadow-[0_0_40px_rgba(255,122,26,0.5)] transition hover:bg-[#ff8f3d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:text-base"
+                >
+                  Enter Campus Ninja →
+                </button>
+                <button
+                  type="button"
+                  onClick={finish}
+                  className="font-mono text-[11px] uppercase tracking-[0.25em] text-zinc-500 transition hover:text-zinc-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A1A]"
+                >
+                  Skip intro
+                </button>
+              </div>
             </div>
           )}
 
           {/* ── Diagonal screen-split panels (seam matches the slash diagonal:
-              blade travels screen top-left → bottom-right).
-              Transparent until the cut so the 3D stage stays visible.
+              blade travels screen top-left → bottom-right, verified at the
+              7.083s impact frame).
+              Transparent until the cut so the video stage stays visible.
               Panels tip in 3D perspective as they part, and each carries its
               own cut-edge glow that fades out — the split reads as fractured
               matter, not sliding rectangles. ── */}
@@ -295,6 +315,7 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
                   background: 'linear-gradient(90deg, transparent, #FF7A1A 40%, #FFF7ED 65%, transparent)',
                   boxShadow: '0 0 24px 5px rgba(255,122,26,0.85)',
                   transform: 'translate(-50%, -50%) rotate(45deg)',
+                  transformOrigin: 'center',
                 }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: [0, 1, 1, 0] }}
@@ -317,31 +338,6 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
               animate={{ opacity: [0, 1, 0.85, 0], scaleX: 1 }}
               transition={{ duration: 1.1, ease: 'easeOut' }}
             />
-          )}
-
-          {/* Fallback slash beam (degraded path only — the 3D blade owns the real slash) */}
-          {degraded && phase === 'fallback-slash' && (
-            <>
-              <motion.div
-                aria-hidden="true"
-                className="absolute left-1/2 top-1/2 z-20 h-[6px] w-[150%]"
-                style={{
-                  background: 'linear-gradient(90deg, transparent, #FFF7ED 30%, #FF7A1A 55%, #FF3D00 75%, transparent)',
-                  boxShadow: '0 0 40px 8px rgba(255,122,26,0.8), 0 0 120px 30px rgba(255,61,0,0.4)',
-                  transform: 'translate(-50%, -50%) rotate(45deg)',
-                }}
-                initial={{ scaleX: 0, opacity: 0 }}
-                animate={{ scaleX: 1, opacity: [0, 1, 1, 0] }}
-                transition={{ duration: 0.7, ease: 'easeOut' }}
-              />
-              <motion.div
-                aria-hidden="true"
-                className="absolute inset-0 z-20 bg-[#FFF3E6]"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: [0, 0.9, 0] }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
-              />
-            </>
           )}
 
           {/* Ember / shard burst */}
@@ -407,21 +403,12 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
             </motion.div>
           )}
 
-          {/* Caption + sound + skip (always available) */}
-          <div className="absolute inset-x-0 top-0 z-40 flex items-start justify-between p-4 sm:p-6">
-            <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500 sm:text-xs">
-              Cinematic intro — skippable
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={toggleAudio}
-                aria-pressed={audioOn}
-                aria-label={audioOn ? 'Mute intro sound' : 'Enable intro sound'}
-                className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-xs font-semibold text-zinc-200 backdrop-blur transition hover:border-[#FF7A1A]/60 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF7A1A] sm:text-sm"
-              >
-                {audioOn ? 'Sound on' : 'Sound off'}
-              </button>
+          {/* Caption + skip (always available once past the gate choice) */}
+          {!inGate && (
+            <div className="absolute inset-x-0 top-0 z-40 flex items-start justify-between p-4 sm:p-6">
+              <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-zinc-500 sm:text-xs">
+                Cinematic intro — skippable
+              </p>
               <button
                 type="button"
                 onClick={finish}
@@ -430,7 +417,7 @@ export const IntroOverlay: React.FC<IntroOverlayProps> = ({ onComplete }) => {
                 Skip intro →
               </button>
             </div>
-          </div>
+          )}
         </motion.div>
       )}
     </AnimatePresence>
